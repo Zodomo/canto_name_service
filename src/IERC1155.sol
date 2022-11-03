@@ -124,7 +124,7 @@ Smart contracts MUST implement the ERC-165 supportsInterface function and signif
 /**
     Note: The ERC-165 identifier for this interface is 0x4e2312e0.
 */
-interface IERC1155TokenReceiver {
+interface ERC1155TokenReceiver {
     /**
         @notice Handle the receipt of a single ERC1155 token type.
         @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeTransferFrom` after the balance has been updated.

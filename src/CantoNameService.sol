@@ -2,8 +2,8 @@
 pragma solidity ^0.8.17;
 
 import "./ICNS.sol";
-import "./IERC1155.sol";
+import "./ERC1155.sol";
 
-contract CantoNameService is ICNS, IERC1155 {
+contract CantoNameService is ICNS, ERC1155 {
   
 }
