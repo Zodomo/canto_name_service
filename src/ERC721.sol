@@ -3,8 +3,7 @@ pragma solidity ^0.8.17;
 
 import "./IERC721.sol";
 
-/// @notice A generic interface for a contract which properly accepts ERC721 tokens.
-/// @author Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC721.sol)
+// Inspired by Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC721.sol)
 abstract contract ERC721TokenReceiver {
     function onERC721Received(
         address,
@@ -17,13 +16,13 @@ abstract contract ERC721TokenReceiver {
 }
 
 // Inspired by Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC721.sol)
-contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
+abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
 
     /*//////////////////////////////////////////////////////////////
                               ERC165 LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
         return
             interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
             interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
@@ -54,9 +53,9 @@ contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
                       ERC721 BALANCE/OWNER STORAGE
     //////////////////////////////////////////////////////////////*/
 
-    mapping(uint256 => address) internal nameOwner;
+    mapping(uint256 => address) public nameOwner;
 
-    mapping(address => uint256) internal _balanceOf;
+    mapping(address => uint256) public _balanceOf;
 
     function ownerOf(uint256 id) public view virtual returns (address owner) {
         require((owner = nameOwner[id]) != address(0), "NOT_MINTED");
@@ -76,7 +75,7 @@ contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
     // Owner address => (operator address => approved boolean)
     // Operators allowed to interact with all names
     // Owner address should always be msg.sender
-    mapping (address => mapping(address => bool)) internal operatorApprovals;
+    mapping (address => mapping(address => bool)) public operatorApprovals;
 
     /*//////////////////////////////////////////////////////////////
                                CONSTRUCTOR
@@ -112,11 +111,11 @@ contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         address to,
         uint256 id
     ) public override {
-        require(from == nameOwner[id], "Cannot transfer to self");
-        require(to != address(0), "Cannot transfer to zero address");
+        require(from == nameOwner[id], "SELF_TRANSFER");
+        require(to != address(0), "ZERO_ADDRESS");
         require(
             msg.sender == from || operatorApprovals[from][msg.sender] || msg.sender == getApproved[id],
-            "Not authorized"
+            "NOT_AUTHORIZED"
         );
 
         // Underflow of the sender's balance is impossible because we check for
@@ -161,72 +160,6 @@ contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         require(
             to.code.length == 0 ||
                 ERC721TokenReceiver(to).onERC721Received(msg.sender, from, id, data) ==
-                ERC721TokenReceiver.onERC721Received.selector,
-            "UNSAFE_RECIPIENT"
-        );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL MINT/BURN LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    function _mint(address to, uint256 id) internal virtual {
-        require(to != address(0), "INVALID_RECIPIENT");
-
-        require(nameOwner[id] == address(0), "ALREADY_MINTED");
-
-        // Counter overflow is incredibly unrealistic.
-        unchecked {
-            _balanceOf[to]++;
-        }
-
-        nameOwner[id] = to;
-
-        emit Transfer(address(0), to, id);
-    }
-
-    function _burn(uint256 id) internal virtual {
-        address owner = nameOwner[id];
-
-        require(owner != address(0), "NOT_MINTED");
-
-        // Ownership check above ensures no underflow.
-        unchecked {
-            _balanceOf[owner]--;
-        }
-
-        delete nameOwner[id];
-
-        delete getApproved[id];
-
-        emit Transfer(owner, address(0), id);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL SAFE MINT LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    function _safeMint(address to, uint256 id) internal virtual {
-        _mint(to, id);
-
-        require(
-            to.code.length == 0 ||
-                ERC721TokenReceiver(to).onERC721Received(msg.sender, address(0), id, "") ==
-                ERC721TokenReceiver.onERC721Received.selector,
-            "UNSAFE_RECIPIENT"
-        );
-    }
-
-    function _safeMint(
-        address to,
-        uint256 id,
-        bytes memory data
-    ) internal virtual {
-        _mint(to, id);
-
-        require(
-            to.code.length == 0 ||
-                ERC721TokenReceiver(to).onERC721Received(msg.sender, address(0), id, data) ==
                 ERC721TokenReceiver.onERC721Received.selector,
             "UNSAFE_RECIPIENT"
         );
