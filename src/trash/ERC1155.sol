@@ -3,6 +3,10 @@ pragma solidity ^0.8.17;
 
 import "./IERC1155.sol";
 
+// https://github.com/ensdomains/ens-contracts/blob/master/contracts/wrapper/ERC1155Fuse.sol
+// https://github.com/enjin/erc-1155/blob/master/contracts/ERC1155.sol
+// solmate ERC1155
+
 contract ERC1155 is IERC1155, ERC1155TokenReceiver {
 
   /*//////////////////////////////////////////////////////////////
@@ -42,6 +46,7 @@ contract ERC1155 is IERC1155, ERC1155TokenReceiver {
                            ERC1155 LOGIC
   //////////////////////////////////////////////////////////////*/
 
+  // DONE
   function setApprovalForAll(address _operator, bool _approved)
     public virtual override
   {
