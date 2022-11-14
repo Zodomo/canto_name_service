@@ -19,8 +19,6 @@ contract LinearVRGDA {
 
   // All values in VRGDA represent 18 decimal fixed point number
   struct VRGDA {
-    // Tracks whether VRGDA has been initialized to prevent multiple initialization calls
-    bool initialized;
     // Target price for a tokenamen, to be scaled according to sales pace.
     int256 targetPrice;
     // Percentage price decays per unit of time with no sales, scaled by 1e18.
@@ -43,6 +41,27 @@ contract LinearVRGDA {
   }
   vrgdaData public VRGDAData;
 
+  // Stores VRGDA init data for batch initialization
+  struct vrgdaBatchData {
+    int256 oneTargetPrice;
+    int256 twoTargetPrice;
+    int256 threeTargetPrice;
+    int256 fourTargetPrice;
+    int256 fiveTargetPrice;
+    int256 onePriceDecayPercent;
+    int256 twoPriceDecayPercent;
+    int256 threePriceDecayPercent;
+    int256 fourPriceDecayPercent;
+    int256 fivePriceDecayPercent;
+    int256 onePerTimeUnit;
+    int256 twoPerTimeUnit;
+    int256 threePerTimeUnit;
+    int256 fourPerTimeUnit;
+    int256 fivePerTimeUnit;
+    bool batchInitialized;
+  }
+  vrgdaBatchData public vrgdaBatch;
+
   /// @notice Constructor nuked in favor of initialize() function, will be called in CantoNameService constructor
   /* /// @param _targetPrice The target price for a token if sold on pace, scaled by 1e18.
   /// @param _priceDecayPercent The percent price decays per unit of time with no sales, scaled by 1e18.
@@ -57,53 +76,53 @@ contract LinearVRGDA {
     int256 _perTimeUnit
   ) internal {
     if (_VRGDA == 1) {
-      require(VRGDAData.one.initialized == false, "VRGDA 1 already initialized");
       VRGDAData.one.targetPrice = _targetPrice;
       VRGDAData.one.priceDecayPercent = _priceDecayPercent;
       VRGDAData.one.decayConstant = wadLn(1e18 - _priceDecayPercent);
       VRGDAData.one.perTimeUnit = _perTimeUnit;
       VRGDAData.one.startTime = int256(block.timestamp);
-      VRGDAData.one.initialized = true;
     }
     else if (_VRGDA == 2) {
-      require(VRGDAData.two.initialized == false, "VRGDA 2 already initialized");
       VRGDAData.two.targetPrice = _targetPrice;
       VRGDAData.two.priceDecayPercent = _priceDecayPercent;
       VRGDAData.two.decayConstant = wadLn(1e18 - _priceDecayPercent);
       VRGDAData.two.perTimeUnit = _perTimeUnit;
       VRGDAData.two.startTime = int256(block.timestamp);
-      VRGDAData.two.initialized = true;
     }
     else if (_VRGDA == 3) {
-      require(VRGDAData.three.initialized == false, "VRGDA 3 already initialized");
       VRGDAData.three.targetPrice = _targetPrice;
       VRGDAData.three.priceDecayPercent = _priceDecayPercent;
       VRGDAData.three.decayConstant = wadLn(1e18 - _priceDecayPercent);
       VRGDAData.three.perTimeUnit = _perTimeUnit;
       VRGDAData.three.startTime = int256(block.timestamp);
-      VRGDAData.three.initialized = true;
     }
     else if (_VRGDA == 4) {
-      require(VRGDAData.four.initialized == false, "VRGDA 4 already initialized");
       VRGDAData.four.targetPrice = _targetPrice;
       VRGDAData.four.priceDecayPercent = _priceDecayPercent;
       VRGDAData.four.decayConstant = wadLn(1e18 - _priceDecayPercent);
       VRGDAData.four.perTimeUnit = _perTimeUnit;
       VRGDAData.four.startTime = int256(block.timestamp);
-      VRGDAData.four.initialized = true;
     }
     else if (_VRGDA == 5) {
-      require(VRGDAData.five.initialized == false, "VRGDA 5 already initialized");
       VRGDAData.five.targetPrice = _targetPrice;
       VRGDAData.five.priceDecayPercent = _priceDecayPercent;
       VRGDAData.five.decayConstant = wadLn(1e18 - _priceDecayPercent);
       VRGDAData.five.perTimeUnit = _perTimeUnit;
       VRGDAData.five.startTime = int256(block.timestamp);
-      VRGDAData.five.initialized = true;
     }
     else {
       revert("Zero or >five characters not applicable to VRGDA emissions");
     }
+  }
+
+  function batchInitialize() internal {
+    require(vrgdaBatch.batchInitialized == false, "VRGDA batch already initialized");
+    initialize(1, vrgdaBatch.oneTargetPrice, vrgdaBatch.onePriceDecayPercent, vrgdaBatch.onePerTimeUnit);
+    initialize(2, vrgdaBatch.twoTargetPrice, vrgdaBatch.twoPriceDecayPercent, vrgdaBatch.twoPerTimeUnit);
+    initialize(3, vrgdaBatch.threeTargetPrice, vrgdaBatch.threePriceDecayPercent, vrgdaBatch.threePerTimeUnit);
+    initialize(4, vrgdaBatch.fourTargetPrice, vrgdaBatch.fourPriceDecayPercent, vrgdaBatch.fourPerTimeUnit);
+    initialize(5, vrgdaBatch.fiveTargetPrice, vrgdaBatch.fivePriceDecayPercent, vrgdaBatch.fivePerTimeUnit);
+    vrgdaBatch.batchInitialized = true;
   }
 
   /*//////////////////////////////////////////////////////////////
@@ -113,7 +132,10 @@ contract LinearVRGDA {
   /// @notice Calculate the price of a token according to the VRGDA formula.
   /// @param _sold The total number of tokens that have been sold so far.
   /// @return The price of a token according to VRGDA, scaled by 1e18.
-  function getVRGDAPrice(uint _vrgda, uint256 _sold) public payable returns (uint256) {
+  function getVRGDAPrice(
+    uint _vrgda,
+    uint256 _sold
+  ) public payable returns (uint256) {
 
     // Temporary VRGDA Data storage for specific name length
     int256 targetPrice;
@@ -168,7 +190,10 @@ contract LinearVRGDA {
   /// @param _sold A number of tokens sold, scaled by 1e18, to get the corresponding target sale time for.
   /// @return The target time the tokens should be sold by, scaled by 1e18, where the time is
   /// relative, such that 0 means the tokens should be sold immediately when the VRGDA begins.
-  function getTargetSaleTime(int256 _sold, int256 _perTimeUnit) public pure returns (int256) {
+  function getTargetSaleTime(
+    int256 _sold,
+    int256 _perTimeUnit
+  ) public pure returns (int256) {
     return unsafeWadDiv(_sold, _perTimeUnit);
   }
 }

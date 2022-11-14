@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 
 interface ICNS {
   
-    function safeRegister(uint256 id) external;
-    function safeRegister(uint256 id, bytes memory data) external;
+    function safeRegister(string memory name, uint256 term) external payable;
+    function safeRegister(string memory name, uint256 term, bytes memory data) external payable;
 
-    function ownerBurn(uint256 id) external;
+    function safeBurn(string memory name) external;
 }
