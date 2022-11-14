@@ -271,7 +271,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                    PRIMARY NAME SERVICE LOGIC
+                      PRIMARY NAME SERVICE LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Set primary name, only callable by owner
@@ -298,8 +298,17 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                   INTERNAL REGISTER/BURN LOGIC
+                   INTERNAL MINT/REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
+
+    function _mint(string memory _name) internal {
+        // Convert name string to uint256 id
+        uint256 id = nameToID(_name);
+        // Set name ownership
+        nameOwner[id] = msg.sender;
+        // Instantiate name data / URI(?)
+        nameRegistry[id].name = _name;
+    }
 
     function _register(string memory _name, uint256 _term) internal {
         // Convert name string to uint256 id
@@ -311,24 +320,20 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Calculate name character length
         uint256 length = stringLength(_name);
 
-        // Require real address, real name, and name availability
+        // Require real address and name availability
         require(owner != address(0), "ZERO_ADDRESS");
-        require(length > 0, "INVALID_NAME");
         require(nameRegistry[id].expiry < block.timestamp, "NOT_AVAILABLE");
 
         // If no owner, register
-        if (ownerOf(id) == address(0)) {
+        if (nameOwner[id] == address(0)) {
             // Increase owner's name count by 1
             // Counter overflow is incredibly unrealistic.
             unchecked {
                 _balanceOf[owner]++;
             }
 
-            // Set name ownership
-            nameOwner[id] = owner;
-
-            // Instantiate name data / URI(?)
-            nameRegistry[id].name = _name;
+            // Mint name
+            _mint(_name);
         }
         // Else, transfer from owner
         else {
@@ -366,7 +371,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                  PUBLIC SAFE REGISTER/BURN LOGIC
+                    PUBLIC SAFE REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
     function safeRegister(string memory _name, uint256 _term) external payable {
@@ -411,6 +416,11 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Register name
         _register(_name, _term);
 
+        // Log overpayment as tip
+        if (msg.value > price) {
+            emit Tip(msg.sender, id, msg.value - price);
+        }
+
         // Confirm recipient can receive
         require(
             msg.sender.code.length == 0
@@ -425,7 +435,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                         PAYMENT FUNCTIONS
+                          PAYMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     // Payment handling functions if we need them
