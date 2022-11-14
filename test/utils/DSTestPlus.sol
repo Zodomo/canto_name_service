@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-// import {DSTest} from "ds-test/test.sol";
-import forge-std/Test.sol;
+import "ds-test/test.sol";
 
 import {Hevm} from "./Hevm.sol";
 
