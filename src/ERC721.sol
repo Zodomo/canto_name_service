@@ -22,54 +22,66 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
                               ERC165 LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Used to confirm we accept ERC721 assets
     function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
         return
             interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
-            interfaceId == 0x80ac58cd || // ERC165 Interface ID for ERC721
-            interfaceId == 0x5b5e139f; // ERC165 Interface ID for ERC721Metadata
+            interfaceId == 0x80ac58cd; // ERC165 Interface ID for ERC721
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    // Used by transfer, mint (from is address(0)), and burn (to is address(0))
     event Transfer(address indexed from, address indexed to, uint256 indexed id);
-
+    // Announces approval address for any name, name can only have one single approval at any time
     event Approval(address indexed owner, address indexed spender, uint256 indexed id);
-
+    // Announces operator address for any name owner, giving them full control of all names
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
 
     /*//////////////////////////////////////////////////////////////
                          METADATA STORAGE/LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Should store "Canto Name Service"
     string public name;
-
+    // Should store "CNS"
     string public symbol;
 
-    function tokenURI(uint256 id) public view virtual returns (string memory);
+    // Not implemented yet
+    // function tokenURI(uint256 id) public view virtual returns (string memory);
 
     /*//////////////////////////////////////////////////////////////
                       ERC721 BALANCE/OWNER STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    // uint256(bytes32) converted name to owner address
     mapping(uint256 => address) public nameOwner;
-
+    // Store how many names any owner owns
     mapping(address => uint256) public _balanceOf;
 
+    // Return owner of name id
     function ownerOf(uint256 id) public view virtual returns (address owner) {
         require((owner = nameOwner[id]) != address(0), "NOT_MINTED");
+        return nameOwner[id];
     }
 
+    // Return how many names any owner has
     function balanceOf(address owner) public view virtual returns (uint256) {
         require(owner != address(0), "ZERO_ADDRESS");
         return _balanceOf[owner];
     }
 
     /*//////////////////////////////////////////////////////////////
+                        ERC721 NAME DATA STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /*//////////////////////////////////////////////////////////////
                          ERC721 APPROVAL STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    // Store single address approval for any name id
     mapping(uint256 => address) public getApproved;
 
     // Owner address => (operator address => approved boolean)
@@ -90,6 +102,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
                               ERC721 LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Sets single address approval, allowing one specific address control of specific name
     function approve(address _spender, uint256 _id) public override {
         address owner = nameOwner[_id];
         require(msg.sender == owner || operatorApprovals[owner][msg.sender], "NOT_AUTHORIZED");
@@ -97,15 +110,19 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         emit Approval(owner, _spender, _id);
     }
 
+    // Sets operator address to control all names owned by msg.sender
     function setApprovalForAll(address _operator, bool _approved) public override {
         operatorApprovals[msg.sender][_operator] = _approved;
         emit ApprovalForAll(msg.sender, _operator, _approved);
     }
 
+    // Checks if msg.sender is operator for name owner
     function isApprovedForAll(address _owner, address _operator) public view override returns (bool) {
         return operatorApprovals[_owner][_operator];
     }
 
+    // Handles transferring name from owner to receiver
+    // Can be called by operator
     function transferFrom(
         address from,
         address to,
@@ -134,6 +151,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         emit Transfer(from, to, id);
     }
 
+    // Used to ensure name is received by ERC721 compatible contract or EoA wallet
     function safeTransferFrom(
         address from,
         address to,
@@ -149,6 +167,8 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         );
     }
 
+    // Used to ensure name is received by ERC721 compatible contract or EoA wallet
+    // Also passes calldata
     function safeTransferFrom(
         address from,
         address to,

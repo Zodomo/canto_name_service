@@ -19,6 +19,15 @@ contract CantoNameService is
                               STORAGE
   //////////////////////////////////////////////////////////////*/
 
+  struct namesSold {
+    uint256 one;
+    uint256 two;
+    uint256 three;
+    uint256 four;
+    uint256 five;
+    uint256 sixOrMore;
+  }
+
   /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
@@ -28,55 +37,68 @@ contract CantoNameService is
   }
 
   /*//////////////////////////////////////////////////////////////
+                       INTERNAL GENERAL LOGIC
+  //////////////////////////////////////////////////////////////*/
+
+  // Converts string name to uint256 ID
+  function nameToID(string memory _name) internal returns (uint256) {
+    return (uint256(keccak256(abi.encodePacked(_name))));
+  }
+
+  /*//////////////////////////////////////////////////////////////
                       INTERNAL MINT/BURN LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  function _register(uint256 _id) internal {
+  function _register(string memory _name) internal {
+    uint256 id = nameToID(_name);
     address owner = msg.sender;
     require(owner != address(0), "Zero address cannot mint");
-    require(nameOwner[_id] == address(0), "Name already minted");
+    require(nameOwner[id] == address(0), "Name already minted");
     // Counter overflow is incredibly unrealistic.
     unchecked {
       _balanceOf[owner]++;
     }
-    nameOwner[_id] = owner;
-    emit Transfer(address(0), owner, _id);
+    nameOwner[id] = owner;
+    emit Transfer(address(0), owner, id);
   }
 
-  function _burn(uint256 _id) internal {
-    address owner = nameOwner[_id];
+  function _burn(string memory _name) internal {
+    uint256 id = nameToID(_name);
+    address owner = nameOwner[id];
     require(owner != address(0), "NOT_MINTED");
     // Ownership check above ensures no underflow.
     unchecked {
       _balanceOf[owner]--;
     }
-    delete nameOwner[_id];
-    delete getApproved[_id];
-    emit Transfer(owner, address(0), _id);
+    delete nameOwner[id];
+    delete getApproved[id];
+    emit Transfer(owner, address(0), id);
   }
 
   /*//////////////////////////////////////////////////////////////
                     PUBLIC SAFE MINT/BURN LOGIC
   //////////////////////////////////////////////////////////////*/
 
-  function safeRegister(uint256 _id) external override {
-    _register(_id);
+  function safeRegister(string memory _name) external override {
+    uint256 id = nameToID(_name);
+    _register(id);
     require(
       msg.sender.code.length == 0 ||
-        ERC721TokenReceiver(msg.sender).onERC721Received(msg.sender, address(0), _id, "") ==
+        ERC721TokenReceiver(msg.sender).onERC721Received(msg.sender, address(0), id, "") ==
           ERC721TokenReceiver.onERC721Received.selector,
         "UNSAFE_RECIPIENT"
     );
   }
 
   function safeRegister(
-    uint256 _id,
+    string memory _name,
     bytes memory _data
   ) external override {
-    _register(_id);
+    uint256 id = nameToID(_name);
+    _register(id);
     require(
       msg.sender.code.length == 0 ||
-        ERC721TokenReceiver(msg.sender).onERC721Received(msg.sender, address(0), _id, _data) ==
+        ERC721TokenReceiver(msg.sender).onERC721Received(msg.sender, address(0), id, _data) ==
           ERC721TokenReceiver.onERC721Received.selector,
         "UNSAFE_RECIPIENT"
     );
