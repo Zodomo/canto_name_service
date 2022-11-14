@@ -47,6 +47,13 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         _;
     }
 
+    // Require name to not be delegated
+    modifier notDelegated(string memory _name) {
+        uint256 id = nameToID(_name);
+        require(nameRegistry[id].delegationExpiry < block.timestamp, "NAME_DELEGATED");
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                               STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -287,18 +294,16 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         emit NoPrimary(msg.sender);
     }
 
+    // Return address' primary name
     function getPrimary(address _address) public view returns (string memory) {
         uint256 id = primaryName[_address];
         return nameRegistry[id].name;
     }
 
+    // Return name owner address
     function getOwner(string memory _name) public view returns (address owner) {
         uint256 id = nameToID(_name);
         return ownerOf(id);
-    }
-
-    function transferName(string memory _name) public onlyNameOwner(_name) {
-
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -439,6 +444,27 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function safeBurn(string memory _name) public onlyNameOwner(_name) {
         _burn(_name);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            TRANSFER LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Internal transfer logic
+    function _transfer(uint256 _id, address _recipient) internal {
+        // Clear out ancillary name data
+        clearName(_id);
+        safeTransferFrom(msg.sender, _recipient, _id);
+    }
+
+    // Callable transfer function
+    // So far, the only thing needed for transfer is clearing ancillary name data and no delegation
+    function transferName(
+        string memory _name,
+        address _recipient
+    ) public onlyNameOwner(_name) notDelegated(_name) {
+        uint256 id = nameToID(_name);
+        _transfer(id, _recipient);
     }
 
     /*//////////////////////////////////////////////////////////////
