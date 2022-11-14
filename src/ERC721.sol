@@ -62,15 +62,15 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
     mapping(address => uint256) public _balanceOf;
 
     // Return owner of name id
-    function ownerOf(uint256 id) public view override returns (address owner) {
-        require((owner = nameOwner[id]) != address(0), "NOT_MINTED");
-        return nameOwner[id];
+    function ownerOf(uint256 _id) public view override returns (address owner) {
+        require((owner = nameOwner[_id]) != address(0), "NOT_MINTED");
+        return nameOwner[_id];
     }
 
     // Return how many names any owner has
-    function balanceOf(address owner) public view override returns (uint256) {
-        require(owner != address(0), "ZERO_ADDRESS");
-        return _balanceOf[owner];
+    function balanceOf(address _owner) public view override returns (uint256) {
+        require(_owner != address(0), "ZERO_ADDRESS");
+        return _balanceOf[_owner];
     }
 
     /*//////////////////////////////////////////////////////////////

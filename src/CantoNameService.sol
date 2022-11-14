@@ -297,6 +297,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         return ownerOf(id);
     }
 
+    function transferName(string memory _name) public onlyNameOwner(_name) {
+
+    }
+
     /*//////////////////////////////////////////////////////////////
                    INTERNAL MINT/REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
@@ -335,9 +339,12 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
             // Mint name
             _mint(_name);
         }
-        // Else, transfer from owner
+        // Else, clear name and transfer from owner
         else {
+            // Clears ancillary data
             clearName(id);
+            // Setting approval allows new owner to call safeTransferFrom()
+            approvals[id] = owner;
             safeTransferFrom(ownerOf(id), msg.sender, id);
         }
 
