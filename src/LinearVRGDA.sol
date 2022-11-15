@@ -65,8 +65,8 @@ contract LinearVRGDA {
         int256 onePerTimeUnit;
         int256 twoPerTimeUnit;
         int256 threePerTimeUnit;
-        // int256 fourPerTimeUnit;
-        // int256 fivePerTimeUnit;
+        int256 fourPerTimeUnit;
+        int256 fivePerTimeUnit;
         bool batchInitialized;
     }
 
@@ -98,18 +98,18 @@ contract LinearVRGDA {
             VRGDAData.three.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.three.perTimeUnit = _perTimeUnit;
             VRGDAData.three.startTime = int256(block.timestamp);
-            // } else if (_VRGDA == 4) {
-            //     VRGDAData.four.targetPrice = _targetPrice;
-            //     VRGDAData.four.priceDecayPercent = _priceDecayPercent;
-            //     VRGDAData.four.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            //     VRGDAData.four.perTimeUnit = _perTimeUnit;
-            //     VRGDAData.four.startTime = int256(block.timestamp);
-            // } else if (_VRGDA == 5) {
-            //     VRGDAData.five.targetPrice = _targetPrice;
-            //     VRGDAData.five.priceDecayPercent = _priceDecayPercent;
-            //     VRGDAData.five.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            //     VRGDAData.five.perTimeUnit = _perTimeUnit;
-            //     VRGDAData.five.startTime = int256(block.timestamp);
+        } else if (_VRGDA == 4) {
+            VRGDAData.four.targetPrice = _targetPrice;
+            VRGDAData.four.priceDecayPercent = _priceDecayPercent;
+            VRGDAData.four.decayConstant = wadLn(1e18 - _priceDecayPercent);
+            VRGDAData.four.perTimeUnit = _perTimeUnit;
+            VRGDAData.four.startTime = int256(block.timestamp);
+        } else if (_VRGDA == 5) {
+            VRGDAData.five.targetPrice = _targetPrice;
+            VRGDAData.five.priceDecayPercent = _priceDecayPercent;
+            VRGDAData.five.decayConstant = wadLn(1e18 - _priceDecayPercent);
+            VRGDAData.five.perTimeUnit = _perTimeUnit;
+            VRGDAData.five.startTime = int256(block.timestamp);
         } else {
             revert("Zero or >five characters not applicable to VRGDA emissions");
         }
@@ -120,8 +120,8 @@ contract LinearVRGDA {
         initialize(1, vrgdaBatch.oneTargetPrice, vrgdaBatch.onePriceDecayPercent, vrgdaBatch.onePerTimeUnit);
         initialize(2, vrgdaBatch.twoTargetPrice, vrgdaBatch.twoPriceDecayPercent, vrgdaBatch.twoPerTimeUnit);
         initialize(3, vrgdaBatch.threeTargetPrice, vrgdaBatch.threePriceDecayPercent, vrgdaBatch.threePerTimeUnit);
-        // initialize(4, vrgdaBatch.fourTargetPrice, vrgdaBatch.fourPriceDecayPercent, vrgdaBatch.fourPerTimeUnit);
-        // initialize(5, vrgdaBatch.fiveTargetPrice, vrgdaBatch.fivePriceDecayPercent, vrgdaBatch.fivePerTimeUnit);
+        initialize(4, vrgdaBatch.fourTargetPrice, vrgdaBatch.fourPriceDecayPercent, vrgdaBatch.fourPerTimeUnit);
+        initialize(5, vrgdaBatch.fiveTargetPrice, vrgdaBatch.fivePriceDecayPercent, vrgdaBatch.fivePerTimeUnit);
         vrgdaBatch.batchInitialized = true;
     }
 

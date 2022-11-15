@@ -49,6 +49,7 @@ contract CNSTest is DSTestPlus {
 
     function setUp() public {
         token = new CantoNameService();
+        token.testingInitialize();
     }
 
     function invariantMetadata() public {

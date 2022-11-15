@@ -112,19 +112,23 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Initialize a single VRGDA
     // Can only be performed after batch initialization
-    function vrgdaInitialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit)
-        public
-        onlyContractOwner
-    {
+    function vrgdaInitialize(
+        uint256 _VRGDA,
+        int256 _targetPrice,
+        int256 _priceDecayPercent,
+        int256 _perTimeUnit
+    ) public onlyContractOwner {
         require(vrgdaBatch.batchInitialized == true, "VRGDA_BATCH_INIT");
         initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
     }
 
     // Prep VRGDA data for batch initialization
-    function prepBatchInitialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit)
-        public
-        onlyContractOwner
-    {
+    function prepBatchInitialize(
+        uint256 _VRGDA,
+        int256 _targetPrice,
+        int256 _priceDecayPercent,
+        int256 _perTimeUnit
+    ) public onlyContractOwner {
         if (_VRGDA == 1) {
             vrgdaBatch.oneTargetPrice = _targetPrice;
             vrgdaBatch.onePriceDecayPercent = _priceDecayPercent;
@@ -137,14 +141,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
             vrgdaBatch.threeTargetPrice = _targetPrice;
             vrgdaBatch.threePriceDecayPercent = _priceDecayPercent;
             vrgdaBatch.threePerTimeUnit = _perTimeUnit;
-            // } else if (_VRGDA == 4) {
-            //     vrgdaBatch.fourTargetPrice = _targetPrice;
-            //     vrgdaBatch.fourPriceDecayPercent = _priceDecayPercent;
-            //     vrgdaBatch.fourPerTimeUnit = _perTimeUnit;
-            // } else if (_VRGDA == 5) {
-            //     vrgdaBatch.fiveTargetPrice = _targetPrice;
-            //     vrgdaBatch.fivePriceDecayPercent = _priceDecayPercent;
-            //     vrgdaBatch.fivePerTimeUnit = _perTimeUnit;
+        } else if (_VRGDA == 4) {
+            vrgdaBatch.fourTargetPrice = _targetPrice;
+            vrgdaBatch.fourPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.fourPerTimeUnit = _perTimeUnit;
+        } else if (_VRGDA == 5) {
+            vrgdaBatch.fiveTargetPrice = _targetPrice;
+            vrgdaBatch.fivePriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.fivePerTimeUnit = _perTimeUnit;
         } else {
             revert("Zero or >five characters not applicable to VRGDA emissions");
         }
@@ -168,17 +172,26 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
             vrgdaBatch.threeTargetPrice > 0 && vrgdaBatch.threePriceDecayPercent > 0 && vrgdaBatch.threePerTimeUnit > 0,
             "VRGDA_THREE_MISSING_DATA"
         );
-        // require(
-        //     vrgdaBatch.fourTargetPrice > 0 && vrgdaBatch.fourPriceDecayPercent > 0 && vrgdaBatch.fourPerTimeUnit > 0,
-        //     "VRGDA_FOUR_MISSING_DATA"
-        // );
-        // require(
-        //     vrgdaBatch.fiveTargetPrice > 0 && vrgdaBatch.fivePriceDecayPercent > 0 && vrgdaBatch.fivePerTimeUnit > 0,
-        //     "VRGDA_FIVE_MISSING_DATA"
-        // );
+        require(
+            vrgdaBatch.fourTargetPrice > 0 && vrgdaBatch.fourPriceDecayPercent > 0 && vrgdaBatch.fourPerTimeUnit > 0,
+            "VRGDA_FOUR_MISSING_DATA"
+        );
+        require(
+            vrgdaBatch.fiveTargetPrice > 0 && vrgdaBatch.fivePriceDecayPercent > 0 && vrgdaBatch.fivePerTimeUnit > 0,
+            "VRGDA_FIVE_MISSING_DATA"
+        );
 
         // After all checks, batch initialize
         batchInitialize();
+    }
+
+    // THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION
+    // Junk batch initialization so _register can query VRGDA function properly
+    function testingInitialize() public onlyContractOwner {
+        vrgdaBatch.oneTargetPrice = vrgdaBatch.onePriceDecayPercent = vrgdaBatch.onePerTimeUnit = 
+        vrgdaBatch.twoTargetPrice = vrgdaBatch.twoPriceDecayPercent = vrgdaBatch.twoPerTimeUnit = 
+        vrgdaBatch.threeTargetPrice = vrgdaBatch.threePriceDecayPercent = vrgdaBatch.threePerTimeUnit = vrgdaBatch.fourTargetPrice = vrgdaBatch.fourPriceDecayPercent = vrgdaBatch.fourPerTimeUnit = vrgdaBatch.fiveTargetPrice = vrgdaBatch.fivePriceDecayPercent = vrgdaBatch.fivePerTimeUnit = 1;
+        vrgdaBatchInitialize();
     }
 
     /*//////////////////////////////////////////////////////////////
