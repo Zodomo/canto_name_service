@@ -27,11 +27,11 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         _;
     }
 
-    // Require name to not be reserved for safeRegister
-    modifier notReserved(string memory _name) {
+    // Require name delegate
+    modifier onlyDelegate(string memory _name) {
         uint256 id = nameToID(_name);
-        require(nameReserver[id] == address(0) ||
-            reservationExpiry[msg.sender] < block.timestamp, "NAME_RESERVED");
+        require(nameOwner[id] != address(0), "NOT_DELEGATED");
+        require(nameRegistry[id].delegate > msg.sender, "NOT_DELEGATE");
         _;
     }
 
@@ -39,6 +39,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     modifier notDelegated(string memory _name) {
         uint256 id = nameToID(_name);
         require(nameRegistry[id].delegationExpiry < block.timestamp, "NAME_DELEGATED");
+        _;
+    }
+
+    // Require name to not be reserved for safeRegister
+    modifier notReserved(string memory _name) {
+        uint256 id = nameToID(_name);
+        require(nameReserver[id] == address(0) ||
+            reservationExpiry[msg.sender] < block.timestamp, "NAME_RESERVED");
         _;
     }
 
@@ -310,7 +318,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     //////////////////////////////////////////////////////////////*/
 
     // Set primary name, only callable by owner
-    function setPrimary(string memory _name) public override onlyNameOwner(_name) notDelegated(_name) {
+    function ownerSetPrimary(string memory _name) public override onlyNameOwner(_name) notDelegated(_name) {
+        uint256 id = nameToID(_name);
+        primaryName[msg.sender] = id;
+        emit Primary(msg.sender, id);
+    }
+
+    // Set primary name, only callable by delegate
+    function delegateSetPrimary(string memory _name) public override onlyDelegate(_name) {
         uint256 id = nameToID(_name);
         primaryName[msg.sender] = id;
         emit Primary(msg.sender, id);
@@ -381,6 +396,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         else {
             // Clears ancillary data
             _clearName(id);
+            // If owner or delegate (if any) set as primary name, remove it
+            if (primaryName[msg.sender] == id || primaryName[nameRegistry[id].delegate] == id) {
+                clearPrimary();
+            }
             // Setting approval allows new owner to call safeTransferFrom()
             approvals[id] = owner;
             safeTransferFrom(ownerOf(id), msg.sender, id);
@@ -538,6 +557,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     ) internal {
         // Clear out ancillary name data
         _clearName(_id);
+        // If owner or delegate (if any) set as primary name, remove it
+        if (primaryName[msg.sender] == _id || primaryName[nameRegistry[_id].delegate] == _id) {
+            clearPrimary();
+        }
         safeTransferFrom(msg.sender, _recipient, _id);
     }
 

@@ -43,7 +43,8 @@ interface ICNS {
     function priceName(uint256 length) external returns (uint256);
     function totalNamesSold() external view returns (uint256);
 
-    function setPrimary(string memory name) external;
+    function ownerSetPrimary(string memory name) external;
+    function delegateSetPrimary(string memory name) external;
     function clearPrimary() external;
     function getPrimary(address target) external view returns (string memory);
 
