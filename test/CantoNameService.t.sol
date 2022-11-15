@@ -106,20 +106,13 @@ contract CNSTest is DSTestPlus {
         assertEq(length, 0);
     }
 
-    /* This test fails because of a bug in _register()
-       if a name hasn't been registered no NFT has been minted so ownerOf() will revert
-       I recommend splitting out the mint function from _register() and calling it in _register() after doing the CNS register checks */
-
-    // Zodomo: Fixed the above by using nameOwner[id] instead of ownerOf(id) which imposed the ownership check
-    // Also split out the mint logic from _register() by adding _mint()
-
-    // I also think there should be a separate transferName function that calls _register() and then transfers the NFT as well as a registerNewName function that mints a new name to simplify the logic
-
-    /* Disabled as it doesn't pay for registration yet
+    // Should trigger Register and Tip event emissions as name is being overpaid for
+    // Currently fails due to onERC721Received call
+    // Unsure if it is due to the contract referencing it in _register() or here in the test
     function testSafeRegister() public {
         string memory _name = "a";
         uint256 _term = 1;
 
-        token.safeRegister(_name, _term);
-    } */
+        token.safeRegister{ value: 2 ether }(_name, _term);
+    }
 }
