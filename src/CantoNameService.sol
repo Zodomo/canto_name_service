@@ -110,6 +110,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                           VRDGA MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
+    /* stack too deep
     // Initialize a single VRGDA
     // Can only be performed after batch initialization
     function vrgdaInitialize(
@@ -120,8 +121,8 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     ) public onlyContractOwner {
         require(vrgdaBatch.batchInitialized == true, "VRGDA_BATCH_INIT");
         initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
-    }
-
+    } */
+    /* stack too deep
     // Prep VRGDA data for batch initialization
     function prepBatchInitialize(
         uint256 _VRGDA,
@@ -192,7 +193,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         vrgdaBatch.twoTargetPrice = vrgdaBatch.twoPriceDecayPercent = vrgdaBatch.twoPerTimeUnit = 
         vrgdaBatch.threeTargetPrice = vrgdaBatch.threePriceDecayPercent = vrgdaBatch.threePerTimeUnit = vrgdaBatch.fourTargetPrice = vrgdaBatch.fourPriceDecayPercent = vrgdaBatch.fourPerTimeUnit = vrgdaBatch.fiveTargetPrice = vrgdaBatch.fivePriceDecayPercent = vrgdaBatch.fivePerTimeUnit = 1;
         vrgdaBatchInitialize();
-    }
+    } */
 
     /*//////////////////////////////////////////////////////////////
                        INTERNAL/LIBRARY LOGIC
@@ -243,6 +244,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         return charCount;
     }
 
+    /* stack too deep
     // Returns proper VRGDA price for name based off string length
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
     function priceName(uint256 _length) internal returns (uint256) {
@@ -261,7 +263,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
             price = 1 ether;
         }
         return price;
-    }
+    } */
 
     // Increments the proper sale counter based on string length
     function incrementCounts(uint256 _length) internal {
@@ -282,13 +284,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         }
     }
 
+    /* stack too deep
     // Return total number of names sold
     function totalNamesSold() public view returns (uint256) {
         return (
             soldCounts.one + soldCounts.two + soldCounts.three + soldCounts.four + soldCounts.five
                 + soldCounts.sixOrMore
         );
-    }
+    } */
 
     /*//////////////////////////////////////////////////////////////
                       PRIMARY NAME SERVICE LOGIC
@@ -405,18 +408,20 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
+        /* stack too deep
         // Calculate price
         uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
-        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
+        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS"); */
 
         // Register name
         _register(_name, _term);
 
+        /* stack too deep
         // Log overpayment as tip
         if (msg.value > price) {
             emit Tip(msg.sender, id, msg.value - price);
-        }
+        } */
 
         // Confirm recipient can receive
         require(
@@ -433,18 +438,20 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
+        /* stack too deep
         // Calculate price
         uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
-        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
+        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS"); */
 
         // Register name
         _register(_name, _term);
 
+        /* stack too deep
         // Log overpayment as tip
         if (msg.value > price) {
             emit Tip(msg.sender, id, msg.value - price);
-        }
+        } */
 
         // Confirm recipient can receive
         require(

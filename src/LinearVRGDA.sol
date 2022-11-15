@@ -47,29 +47,23 @@ contract LinearVRGDA {
         VRGDA four;
         VRGDA five;
     }
-
     vrgdaData public VRGDAData;
 
+    struct individualVrgda {
+        int256 individualTargetPrice;
+        int256 individualPriceDecayPercent;
+        int256 individualPerTimeUnit;
+    }
+    
     // Stores VRGDA init data for batch initialization
     struct vrgdaBatchData {
-        int256 oneTargetPrice;
-        int256 twoTargetPrice;
-        int256 threeTargetPrice;
-        int256 fourTargetPrice;
-        int256 fiveTargetPrice;
-        int256 onePriceDecayPercent;
-        int256 twoPriceDecayPercent;
-        int256 threePriceDecayPercent;
-        int256 fourPriceDecayPercent;
-        int256 fivePriceDecayPercent;
-        int256 onePerTimeUnit;
-        int256 twoPerTimeUnit;
-        int256 threePerTimeUnit;
-        int256 fourPerTimeUnit;
-        int256 fivePerTimeUnit;
+        individualVrgda vrgdaOne;
+        individualVrgda vrgdaTwo;
+        individualVrgda vrgdaThree;
+        individualVrgda vrgdaFour;
+        individualVrgda vrgdaFive;
         bool batchInitialized;
     }
-
     vrgdaBatchData public vrgdaBatch;
 
     /// @notice Constructor nuked in favor of initialize() function, will be called in CantoNameService constructor
@@ -117,11 +111,26 @@ contract LinearVRGDA {
 
     function batchInitialize() internal {
         require(vrgdaBatch.batchInitialized == false, "VRGDA batch already initialized");
-        initialize(1, vrgdaBatch.oneTargetPrice, vrgdaBatch.onePriceDecayPercent, vrgdaBatch.onePerTimeUnit);
-        initialize(2, vrgdaBatch.twoTargetPrice, vrgdaBatch.twoPriceDecayPercent, vrgdaBatch.twoPerTimeUnit);
-        initialize(3, vrgdaBatch.threeTargetPrice, vrgdaBatch.threePriceDecayPercent, vrgdaBatch.threePerTimeUnit);
-        initialize(4, vrgdaBatch.fourTargetPrice, vrgdaBatch.fourPriceDecayPercent, vrgdaBatch.fourPerTimeUnit);
-        initialize(5, vrgdaBatch.fiveTargetPrice, vrgdaBatch.fivePriceDecayPercent, vrgdaBatch.fivePerTimeUnit);
+        initialize(1,
+            vrgdaBatch.vrgdaOne.individualTargetPrice,
+            vrgdaBatch.vrgdaOne.individualPriceDecayPercent,
+            vrgdaBatch.vrgdaOne.individualPerTimeUnit);
+        initialize(2,
+            vrgdaBatch.vrgdaTwo.individualTargetPrice,
+            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent,
+            vrgdaBatch.vrgdaTwo.individualPerTimeUnit);
+        initialize(1,
+            vrgdaBatch.vrgdaThree.individualTargetPrice,
+            vrgdaBatch.vrgdaThree.individualPriceDecayPercent,
+            vrgdaBatch.vrgdaThree.individualPerTimeUnit);
+        initialize(1,
+            vrgdaBatch.vrgdaFour.individualTargetPrice,
+            vrgdaBatch.vrgdaFour.individualPriceDecayPercent,
+            vrgdaBatch.vrgdaFour.individualPerTimeUnit);
+        initialize(1,
+            vrgdaBatch.vrgdaFive.individualTargetPrice,
+            vrgdaBatch.vrgdaFive.individualPriceDecayPercent,
+            vrgdaBatch.vrgdaFive.individualPerTimeUnit);
         vrgdaBatch.batchInitialized = true;
     }
 
