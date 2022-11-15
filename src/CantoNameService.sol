@@ -386,9 +386,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 id = _nameToID(_name);
         address owner = ownerOf(id); // For cleanliness
 
-        // Make sure name is owned
-        require(owner != address(0), "NOT_MINTED");
-
         // Ownership check ensures no underflow.
         unchecked {
             _balanceOf[owner]--;
@@ -469,7 +466,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
-    function safeBurn(string memory _name) public override onlyNameOwner(_name) {
+    function safeBurn(string memory _name) public override onlyNameOwner(_name) notDelegated(_name) {
         _burn(_name);
     }
 
