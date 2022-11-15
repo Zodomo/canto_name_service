@@ -16,12 +16,16 @@ interface ICNS {
 
     // Announce name registration
     event Register(address indexed registrant, uint256 indexed id, uint256 indexed expiry);
+    // Announce name renewal
+    event Renew(address indexed owner, uint256 indexed id, uint256 indexed expiry);
     // Announce primary name set
     event Primary(address indexed owner, uint256 indexed id);
     // Announce primary name cleared
     event NoPrimary(address indexed sender);
     // Announce name delegation
     event Delegate(address indexed delegate, uint256 indexed id, uint256 indexed expiry);
+    // Announce delegation extension
+    event Extend(address indexed delegate, uint256 indexed id, uint256 indexed expiry);
     // Announce name burn, store both name and derived ID
     event Burn(address indexed owner, uint256 indexed id);
     // Announce registration overpayment as tip
