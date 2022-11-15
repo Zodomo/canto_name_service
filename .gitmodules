@@ -7,3 +7,6 @@
 [submodule "lib/ds-test"]
 	path = lib/ds-test
 	url = https://github.com/dapphub/ds-test
+[submodule "lib/ERC721C"]
+	path = lib/ERC721C
+	url = https://github.com/transmissions11/ERC721C
