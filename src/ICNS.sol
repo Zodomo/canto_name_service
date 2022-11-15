@@ -31,6 +31,18 @@ interface ICNS {
     // Announce registration overpayment as tip
     event Tip(address indexed sender, uint256 indexed id, uint256 indexed tip);
 
+    function addContractOwner(address owner) external;
+    function removeContractOwner(address owner) external;
+
+    function vrgdaInitialize(uint256 VRGDA, int256 targetPrice, int256 priceDecayPercent, int256 perTimeUnit) external;
+    function prepBatchInitialize(uint256 VRGDA, int256 targetPrice, int256 priceDecayPercent, int256 perTimeUnit) external;
+    function vrgdaBatchInitialize() external;
+
+    function nameToID(string memory name) external pure returns (uint256);
+    function stringLength(string memory name) external pure returns (uint256);
+    function priceName(uint256 length) external returns (uint256);
+    function totalNamesSold() external view returns (uint256);
+
     function setPrimary(string memory name) external;
     function clearPrimary() external;
     function getPrimary(address target) external view returns (string memory);
@@ -43,6 +55,11 @@ interface ICNS {
     function safeBurn(string memory name) external;
 
     function transferName(string memory name, address recipient) external;
+
+    function renewName(string memory name, uint256 term) external payable;
+
+    function delegateName(string memory name, address delegate, uint256 term) external;
+    function extendDelegation(string memory name, uint256 term) external;
 
     function withdraw() external;
 }

@@ -19,7 +19,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Require valid name owner
     modifier onlyNameOwner(string memory _name) {
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         require(nameOwner[id] != address(0), "NOT_OWNED");
         require(nameRegistry[id].expiry > block.timestamp, "NAME_EXPIRED");
         require(ownerOf(id) == msg.sender, "NOT_NAME_OWNER");
@@ -28,7 +28,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Require name to not be delegated
     modifier notDelegated(string memory _name) {
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         require(nameRegistry[id].delegationExpiry < block.timestamp, "NAME_DELEGATED");
         _;
     }
@@ -78,7 +78,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                           MANAGEMENT LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function addContractOwner(address _owner) public onlyContractOwner {
+    function addContractOwner(address _owner) public override onlyContractOwner {
         owners[payable(_owner)] = true;
         emit OwnerAdded(msg.sender, _owner);
     }
@@ -99,7 +99,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         int256 _targetPrice,
         int256 _priceDecayPercent,
         int256 _perTimeUnit
-    ) public onlyContractOwner {
+    ) public override onlyContractOwner {
         require(vrgdaBatch.batchInitialized == true, "VRGDA_BATCH_INIT");
         initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
     }
@@ -110,7 +110,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         int256 _targetPrice,
         int256 _priceDecayPercent,
         int256 _perTimeUnit
-    ) public onlyContractOwner {
+    ) public override onlyContractOwner {
         if (_VRGDA == 1) {
             vrgdaBatch.vrgdaOne.individualTargetPrice = _targetPrice;
             vrgdaBatch.vrgdaOne.individualPriceDecayPercent = _priceDecayPercent;
@@ -139,7 +139,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     // Initialize all VRGDAs
     // Can only be called once
     // Must be called before individual VRGDAs can be reinitialized
-    function vrgdaBatchInitialize() public onlyContractOwner {
+    function vrgdaBatchInitialize() public override onlyContractOwner {
         // Check to make sure all batch init data is supplied
         // Identify which VRGDA has missing data
         require(
@@ -203,7 +203,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     //////////////////////////////////////////////////////////////*/
 
     // Converts string name to uint256 ID
-    function _nameToID(string memory _name) internal pure returns (uint256) {
+    function nameToID(string memory _name) public pure override returns (uint256) {
         return (uint256(keccak256(abi.encodePacked(_name))));
     }
 
@@ -222,7 +222,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     // Return string length, properly counts all Unicode characters
-    function stringLength(string memory _string) public pure returns (uint256) {
+    function stringLength(string memory _string) public pure override returns (uint256) {
         uint256 charCount; // Number of characters in _string regardless of char byte length
         uint256 charByteCount = 0; // Number of bytes in char (a = 1, € = 3)
         uint256 byteLength = bytes(_string).length; // Total length of string in raw bytes
@@ -249,7 +249,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Returns proper VRGDA price for name based off string length
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
-    function priceName(uint256 _length) public returns (uint256) {
+    function priceName(uint256 _length) public override returns (uint256) {
         uint256 price;
         if (_length == 1) {
             price = getVRGDAPrice(_length, soldCounts.one);
@@ -300,7 +300,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Set primary name, only callable by owner
     function setPrimary(string memory _name) public override onlyNameOwner(_name) notDelegated(_name) {
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         primaryName[msg.sender] = id;
         emit Primary(msg.sender, id);
     }
@@ -319,7 +319,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Return name owner address
     function getOwner(string memory _name) external view override returns (address) {
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         return ownerOf(id);
     }
 
@@ -329,7 +329,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function _mint(string memory _name) internal {
         // Convert name string to uint256 id
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         // Set name ownership
         nameOwner[id] = msg.sender;
         // Instantiate name data / URI(?)
@@ -341,7 +341,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 _term
     ) internal {
         // Convert name string to uint256 id
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         // Calculate expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 expiry = block.timestamp + (_term * 365 days);
@@ -383,7 +383,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function _burn(string memory _name) internal {
         // Convert name string to uint256 id
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         address owner = ownerOf(id); // For cleanliness
 
         // Ownership check ensures no underflow.
@@ -408,7 +408,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 _term
     ) public override payable {
         // Calculate name ID and string length
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
@@ -440,7 +440,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         bytes memory _data
     ) public override payable {
         // Calculate name ID and string length
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
@@ -466,6 +466,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
+    // Impose ownership and delegation checks before allowing burn
     function safeBurn(string memory _name) public override onlyNameOwner(_name) notDelegated(_name) {
         _burn(_name);
     }
@@ -490,7 +491,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         string memory _name,
         address _recipient
     ) public onlyNameOwner(_name) notDelegated(_name) {
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         _transfer(id, _recipient);
     }
 
@@ -513,9 +514,9 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     function renewName(
         string memory _name,
         uint256 _term
-    ) public payable onlyNameOwner(_name) {
+    ) public payable override onlyNameOwner(_name) {
         // Generate name ID
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
         // Calculate name character length
         uint256 length = stringLength(_name);
         // Use name character length to calculate current price
@@ -541,9 +542,9 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         string memory _name,
         address _delegate,
         uint256 _term
-    ) public onlyNameOwner(_name) notDelegated(_name) {
+    ) public override onlyNameOwner(_name) notDelegated(_name) {
         // Calculate name ID
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
 
         // If primary name, remove it
         if (primaryName[msg.sender] == id) {
@@ -566,9 +567,9 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     function extendDelegation(
         string memory _name,
         uint256 _term
-    ) public onlyNameOwner(_name) {
+    ) public override onlyNameOwner(_name) {
         // Calculate name ID
-        uint256 id = _nameToID(_name);
+        uint256 id = nameToID(_name);
 
         // Calculate new expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
