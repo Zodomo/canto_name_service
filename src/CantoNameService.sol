@@ -4,11 +4,12 @@ pragma solidity ^0.8.17;
 import "./ICNS.sol";
 import "./ERC721.sol";
 import "./LinearVRGDA.sol";
+import "./Allowlist.sol";
 
-contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVRGDA {
+contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVRGDA, Allowlist {
 
     /*//////////////////////////////////////////////////////////////
-                             MODIFIERS
+                               MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     // Require contract owner
@@ -34,7 +35,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                              STORAGE
+                                STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // Contract owners
