@@ -49,7 +49,7 @@ contract CNSTest is DSTestPlus {
 
     function setUp() public {
         token = new CantoNameService();
-        // token.testingInitialize(); // stack too deep
+        token.testingInitialize();
     }
 
     function invariantMetadata() public {
@@ -115,7 +115,7 @@ contract CNSTest is DSTestPlus {
 
     // I also think there should be a separate transferName function that calls _register() and then transfers the NFT as well as a registerNewName function that mints a new name to simplify the logic
 
-    /* stack too deep
+    /* Disabled as it doesn't pay for registration yet
     function testSafeRegister() public {
         string memory _name = "a";
         uint256 _term = 1;

@@ -110,7 +110,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                           VRDGA MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /* stack too deep
     // Initialize a single VRGDA
     // Can only be performed after batch initialization
     function vrgdaInitialize(
@@ -121,8 +120,8 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     ) public onlyContractOwner {
         require(vrgdaBatch.batchInitialized == true, "VRGDA_BATCH_INIT");
         initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
-    } */
-    /* stack too deep
+    }
+
     // Prep VRGDA data for batch initialization
     function prepBatchInitialize(
         uint256 _VRGDA,
@@ -131,25 +130,25 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         int256 _perTimeUnit
     ) public onlyContractOwner {
         if (_VRGDA == 1) {
-            vrgdaBatch.oneTargetPrice = _targetPrice;
-            vrgdaBatch.onePriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.onePerTimeUnit = _perTimeUnit;
+            vrgdaBatch.vrgdaOne.individualTargetPrice = _targetPrice;
+            vrgdaBatch.vrgdaOne.individualPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.vrgdaOne.individualPerTimeUnit = _perTimeUnit;
         } else if (_VRGDA == 2) {
-            vrgdaBatch.twoTargetPrice = _targetPrice;
-            vrgdaBatch.twoPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.twoPerTimeUnit = _perTimeUnit;
+            vrgdaBatch.vrgdaTwo.individualTargetPrice = _targetPrice;
+            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.vrgdaTwo.individualPerTimeUnit = _perTimeUnit;
         } else if (_VRGDA == 3) {
-            vrgdaBatch.threeTargetPrice = _targetPrice;
-            vrgdaBatch.threePriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.threePerTimeUnit = _perTimeUnit;
+            vrgdaBatch.vrgdaThree.individualTargetPrice = _targetPrice;
+            vrgdaBatch.vrgdaThree.individualPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.vrgdaThree.individualPerTimeUnit = _perTimeUnit;
         } else if (_VRGDA == 4) {
-            vrgdaBatch.fourTargetPrice = _targetPrice;
-            vrgdaBatch.fourPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.fourPerTimeUnit = _perTimeUnit;
+            vrgdaBatch.vrgdaFour.individualTargetPrice = _targetPrice;
+            vrgdaBatch.vrgdaFour.individualPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.vrgdaFour.individualPerTimeUnit = _perTimeUnit;
         } else if (_VRGDA == 5) {
-            vrgdaBatch.fiveTargetPrice = _targetPrice;
-            vrgdaBatch.fivePriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.fivePerTimeUnit = _perTimeUnit;
+            vrgdaBatch.vrgdaFive.individualTargetPrice = _targetPrice;
+            vrgdaBatch.vrgdaFive.individualPriceDecayPercent = _priceDecayPercent;
+            vrgdaBatch.vrgdaFive.individualPerTimeUnit = _perTimeUnit;
         } else {
             revert("Zero or >five characters not applicable to VRGDA emissions");
         }
@@ -162,23 +161,33 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Check to make sure all batch init data is supplied
         // Identify which VRGDA has missing data
         require(
-            vrgdaBatch.oneTargetPrice > 0 && vrgdaBatch.onePriceDecayPercent > 0 && vrgdaBatch.onePerTimeUnit > 0,
+            vrgdaBatch.vrgdaOne.individualTargetPrice > 0 && 
+            vrgdaBatch.vrgdaOne.individualPriceDecayPercent > 0 && 
+            vrgdaBatch.vrgdaOne.individualPerTimeUnit > 0,
             "VRGDA_ONE_MISSING_DATA"
         );
         require(
-            vrgdaBatch.twoTargetPrice > 0 && vrgdaBatch.twoPriceDecayPercent > 0 && vrgdaBatch.twoPerTimeUnit > 0,
+            vrgdaBatch.vrgdaTwo.individualTargetPrice > 0 && 
+            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent > 0 && 
+            vrgdaBatch.vrgdaTwo.individualPerTimeUnit > 0,
             "VRGDA_TWO_MISSING_DATA"
         );
         require(
-            vrgdaBatch.threeTargetPrice > 0 && vrgdaBatch.threePriceDecayPercent > 0 && vrgdaBatch.threePerTimeUnit > 0,
+            vrgdaBatch.vrgdaThree.individualTargetPrice > 0 && 
+            vrgdaBatch.vrgdaThree.individualPriceDecayPercent > 0 && 
+            vrgdaBatch.vrgdaThree.individualPerTimeUnit > 0,
             "VRGDA_THREE_MISSING_DATA"
         );
         require(
-            vrgdaBatch.fourTargetPrice > 0 && vrgdaBatch.fourPriceDecayPercent > 0 && vrgdaBatch.fourPerTimeUnit > 0,
+            vrgdaBatch.vrgdaFour.individualTargetPrice > 0 && 
+            vrgdaBatch.vrgdaFour.individualPriceDecayPercent > 0 && 
+            vrgdaBatch.vrgdaFour.individualPerTimeUnit > 0,
             "VRGDA_FOUR_MISSING_DATA"
         );
         require(
-            vrgdaBatch.fiveTargetPrice > 0 && vrgdaBatch.fivePriceDecayPercent > 0 && vrgdaBatch.fivePerTimeUnit > 0,
+            vrgdaBatch.vrgdaFive.individualTargetPrice > 0 && 
+            vrgdaBatch.vrgdaFive.individualPriceDecayPercent > 0 && 
+            vrgdaBatch.vrgdaFive.individualPerTimeUnit > 0,
             "VRGDA_FIVE_MISSING_DATA"
         );
 
@@ -189,11 +198,23 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     // THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION
     // Junk batch initialization so _register can query VRGDA function properly
     function testingInitialize() public onlyContractOwner {
-        vrgdaBatch.oneTargetPrice = vrgdaBatch.onePriceDecayPercent = vrgdaBatch.onePerTimeUnit = 
-        vrgdaBatch.twoTargetPrice = vrgdaBatch.twoPriceDecayPercent = vrgdaBatch.twoPerTimeUnit = 
-        vrgdaBatch.threeTargetPrice = vrgdaBatch.threePriceDecayPercent = vrgdaBatch.threePerTimeUnit = vrgdaBatch.fourTargetPrice = vrgdaBatch.fourPriceDecayPercent = vrgdaBatch.fourPerTimeUnit = vrgdaBatch.fiveTargetPrice = vrgdaBatch.fivePriceDecayPercent = vrgdaBatch.fivePerTimeUnit = 1;
+        vrgdaBatch.vrgdaOne.individualTargetPrice = 
+            vrgdaBatch.vrgdaOne.individualPriceDecayPercent = 
+            vrgdaBatch.vrgdaOne.individualPerTimeUnit = 
+        vrgdaBatch.vrgdaTwo.individualTargetPrice = 
+            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent = 
+            vrgdaBatch.vrgdaTwo.individualPerTimeUnit = 
+        vrgdaBatch.vrgdaThree.individualTargetPrice = 
+            vrgdaBatch.vrgdaThree.individualPriceDecayPercent = 
+            vrgdaBatch.vrgdaThree.individualPerTimeUnit = 
+        vrgdaBatch.vrgdaFour.individualTargetPrice = 
+            vrgdaBatch.vrgdaFour.individualPriceDecayPercent = 
+            vrgdaBatch.vrgdaFour.individualPerTimeUnit = 
+        vrgdaBatch.vrgdaFive.individualTargetPrice = 
+            vrgdaBatch.vrgdaFive.individualPriceDecayPercent = 
+            vrgdaBatch.vrgdaFive.individualPerTimeUnit = 1;
         vrgdaBatchInitialize();
-    } */
+    }
 
     /*//////////////////////////////////////////////////////////////
                        INTERNAL/LIBRARY LOGIC
@@ -244,7 +265,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         return charCount;
     }
 
-    /* stack too deep
     // Returns proper VRGDA price for name based off string length
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
     function priceName(uint256 _length) internal returns (uint256) {
@@ -263,7 +283,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
             price = 1 ether;
         }
         return price;
-    } */
+    }
 
     // Increments the proper sale counter based on string length
     function incrementCounts(uint256 _length) internal {
@@ -284,14 +304,13 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         }
     }
 
-    /* stack too deep
     // Return total number of names sold
     function totalNamesSold() public view returns (uint256) {
         return (
             soldCounts.one + soldCounts.two + soldCounts.three + soldCounts.four + soldCounts.five
                 + soldCounts.sixOrMore
         );
-    } */
+    }
 
     /*//////////////////////////////////////////////////////////////
                       PRIMARY NAME SERVICE LOGIC
@@ -408,20 +427,18 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
-        /* stack too deep
         // Calculate price
         uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
-        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS"); */
+        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
         // Register name
         _register(_name, _term);
 
-        /* stack too deep
         // Log overpayment as tip
         if (msg.value > price) {
             emit Tip(msg.sender, id, msg.value - price);
-        } */
+        }
 
         // Confirm recipient can receive
         require(
@@ -438,20 +455,18 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
-        /* stack too deep
         // Calculate price
         uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
-        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS"); */
+        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
         // Register name
         _register(_name, _term);
 
-        /* stack too deep
         // Log overpayment as tip
         if (msg.value > price) {
             emit Tip(msg.sender, id, msg.value - price);
-        } */
+        }
 
         // Confirm recipient can receive
         require(
