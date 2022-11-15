@@ -80,7 +80,12 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function addContractOwner(address _owner) public onlyContractOwner {
         owners[payable(_owner)] = true;
-        emit Owner(msg.sender, _owner);
+        emit OwnerAdded(msg.sender, _owner);
+    }
+
+    function removeContractOwner(address _owner) public onlyContractOwner {
+        delete owners[payable(_owner)];
+        emit OwnerRemoved(msg.sender, _owner);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -331,7 +336,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         nameRegistry[id].name = _name;
     }
 
-    function _register(string memory _name, uint256 _term) internal {
+    function _register(
+        string memory _name,
+        uint256 _term
+    ) internal {
         // Convert name string to uint256 id
         uint256 id = _nameToID(_name);
         // Calculate expiry timestamp
@@ -398,7 +406,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                     PUBLIC SAFE REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function safeRegister(string memory _name, uint256 _term) public override payable {
+    function safeRegister(
+        string memory _name,
+        uint256 _term
+    ) public override payable {
         // Calculate name ID and string length
         uint256 id = _nameToID(_name);
         uint256 length = stringLength(_name);
@@ -426,7 +437,11 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
-    function safeRegister(string memory _name, uint256 _term, bytes memory _data) public override payable {
+    function safeRegister(
+        string memory _name,
+        uint256 _term,
+        bytes memory _data
+    ) public override payable {
         // Calculate name ID and string length
         uint256 id = _nameToID(_name);
         uint256 length = stringLength(_name);
@@ -463,7 +478,10 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     //////////////////////////////////////////////////////////////*/
 
     // Internal transfer logic
-    function _transfer(uint256 _id, address _recipient) internal {
+    function _transfer(
+        uint256 _id,
+        address _recipient
+    ) internal {
         // Clear out ancillary name data
         _clearName(_id);
         safeTransferFrom(msg.sender, _recipient, _id);

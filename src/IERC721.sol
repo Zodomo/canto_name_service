@@ -36,8 +36,5 @@ interface IERC721 is IERC165 {
 
     function setApprovalForAll(address operator, bool _approved) external;
 
-    function isApprovedForAll(address owner, address operator)
-        external
-        view
-        returns (bool);
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
 }

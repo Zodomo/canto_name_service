@@ -8,7 +8,9 @@ interface ICNS {
     //////////////////////////////////////////////////////////////*/
 
     // Announce new contract owner added
-    event Owner(address indexed caller, address indexed owner);
+    event OwnerAdded(address indexed caller, address indexed owner);
+    // Announce new contract owner removed
+    event OwnerRemoved(address indexed caller, address indexed owner);
     // Announce when contract owner withdraws
     event Withdraw(address indexed owner, uint256 indexed value);
 
