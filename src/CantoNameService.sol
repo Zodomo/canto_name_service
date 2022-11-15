@@ -27,6 +27,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         _;
     }
 
+    // Require name to not be reserved for safeRegister
+    modifier notReserved(string memory _name) {
+        uint256 id = nameToID(_name);
+        require(nameReserver[id] == address(0) ||
+            reservationExpiry[msg.sender] < block.timestamp, "NAME_RESERVED");
+        _;
+    }
+
     // Require name to not be delegated
     modifier notDelegated(string memory _name) {
         uint256 id = nameToID(_name);
@@ -79,11 +87,13 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                           MANAGEMENT LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Add contract owner
     function addContractOwner(address _owner) public override onlyContractOwner {
         owners[payable(_owner)] = true;
         emit OwnerAdded(msg.sender, _owner);
     }
 
+    // Remove contract owner
     function removeContractOwner(address _owner) public onlyContractOwner {
         delete owners[payable(_owner)];
         emit OwnerRemoved(msg.sender, _owner);
@@ -328,6 +338,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                    INTERNAL MINT/REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Mint logic
     function _mint(string memory _name) internal {
         // Convert name string to uint256 id
         uint256 id = nameToID(_name);
@@ -337,6 +348,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         nameRegistry[id].name = _name;
     }
 
+    // Registration logic
     function _register(
         string memory _name,
         uint256 _term
@@ -382,6 +394,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         emit Register(owner, id, expiry);
     }
 
+    // Burn logic
     function _burn(string memory _name) internal {
         // Convert name string to uint256 id
         uint256 id = nameToID(_name);
@@ -401,13 +414,54 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
+                      ALLOWLISTED REGISTER LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Validate reservation information
+    function validateReservation(uint256 id) internal view {
+        // Confirm privileged assignment
+        require(nameReserver[id] == msg.sender, "NOT_RESERVER");
+        require(nameReservation[msg.sender] == id, "NOT_RESERVATION");
+    }
+
+    // Use reservation and process allowlist changes
+    function burnReservation(uint256 id) internal {
+        delete nameReservation[msg.sender];
+        delete nameReserver[id];
+        delete reservationExpiry[msg.sender];
+        reservationUsed[msg.sender] = true;
+    }
+
+    // Process reservation registration
+    function reservedRegister(
+        string memory _name,
+        uint256 _term
+    ) public override payable reservationValid {
+        // Convert name string to uint256 id
+        uint256 id = nameToID(_name);
+        
+        // Validate reservation
+        validateReservation(id);
+
+        // ****************** IMPLEMENT ALLOWLIST BENEFITS HERE ************************
+        // REMOVE PAYABLE MODIFIER IF UNNEEDED
+
+        // Call registration logic
+        _register(_name, _term);
+
+        // Use registration and remove from allowlist
+        burnReservation(id);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                     PUBLIC SAFE REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Process all safety checks before registration
     function safeRegister(
         string memory _name,
         uint256 _term
-    ) public override payable {
+    ) public override payable notReserved(_name) {
         // Calculate name ID and string length
         uint256 id = nameToID(_name);
         uint256 length = stringLength(_name);
@@ -435,11 +489,12 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
+    // Process all safety checks before registration
     function safeRegister(
         string memory _name,
         uint256 _term,
         bytes memory _data
-    ) public override payable {
+    ) public override payable notReserved(_name) {
         // Calculate name ID and string length
         uint256 id = nameToID(_name);
         uint256 length = stringLength(_name);
@@ -539,6 +594,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                            DELEGATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Delegate name utilization rights to another address
     function delegateName(
         string memory _name,
         address _delegate,
@@ -565,6 +621,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         emit Delegate(_delegate, id, expiry);
     }
 
+    // Extend name delegation
     function extendDelegation(
         string memory _name,
         uint256 _term

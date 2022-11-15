@@ -7,14 +7,22 @@ contract Allowlist {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
+    // Log verified users
     event Verified(address indexed user);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
+    // Require CAPTCHA passed
     modifier passCAPTCHA() {
         require(hasPassedCAPTCHA[msg.sender], "MUST_PASS_CAPTCHA");
+        _;
+    }
+
+    // Require reservation not used, currently restricts to one reservation
+    modifier reservationValid() {
+        require(reservationUsed[msg.sender] != true, "RESERVATION_USED");
         _;
     }
 
@@ -22,10 +30,25 @@ contract Allowlist {
                      VERIFICATION/ALLOWLIST STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    // User CAPTCHA verification
     mapping(address => bool) public hasPassedCAPTCHA;
+    // Tracks whether user has used their one reservation
+    mapping(address => bool) public reservationUsed;
+    // Stores reservation expiry timestamp, currently 365 days after reservation
+    mapping(address => uint256) public reservationExpiry;
 
+    // Name reservation mappings to assist with lookups
     mapping(address => uint256) public nameReservation;
     mapping(uint256 => address) public nameReserver;
+
+    // Return reserved ID
+    function getReservation(address _reserver) public view returns (uint256) {
+        return nameReservation[_reserver];
+    }
+    // Return reserver address
+    function getReserver(uint256 _id) public view returns (address) {
+        return nameReserver[_id];
+    }
 
     /*//////////////////////////////////////////////////////////////
                              EIP-712 STORAGE
@@ -112,6 +135,7 @@ contract Allowlist {
         emit Verified(msg.sender);
     }
 
+    // Callable verify function that only requires signature argument
     function verify(bytes memory _sig) public {
         // Split signature to prep _verify call args
         (bytes32 r, bytes32 s, uint8 v) = splitSignature(_sig);
@@ -122,7 +146,8 @@ contract Allowlist {
                            ALLOWLIST LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function reserveName(uint256 _id) public passCAPTCHA {
+    // Reserve name after passing CAPTCHA and ensuring reservation hasn't been used
+    function reserveName(uint256 _id) public passCAPTCHA reservationValid {
         // Confirm name hasn't been reserved
         require(nameReserver[_id] == address(0), "NAME_RESERVED");
         // Block redundant reservations
@@ -136,5 +161,6 @@ contract Allowlist {
         // Set new name reservation
         nameReservation[msg.sender] = _id;
         nameReserver[_id] = msg.sender;
+        reservationExpiry[msg.sender] = block.timestamp + 365 days;
     }
 }

@@ -49,6 +49,7 @@ interface ICNS {
 
     function getOwner(string memory name) external view returns (address);
   
+    function reservedRegister(string memory name, uint256 term) external payable;
     function safeRegister(string memory name, uint256 term) external payable;
     function safeRegister(string memory name, uint256 term, bytes memory data) external payable;
 
