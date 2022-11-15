@@ -6,27 +6,6 @@ import "./ERC721.sol";
 import "./LinearVRGDA.sol";
 
 contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVRGDA {
-    /*//////////////////////////////////////////////////////////////
-                              EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    // Announce new contract owner added
-    event Owner(address indexed caller, address indexed owner);
-    // Announce when contract owner withdraws
-    event Withdraw(address indexed owner, uint256 indexed value);
-
-    // Announce name registration
-    event Register(address indexed registrant, uint256 indexed id, uint256 indexed expiry);
-    // Announce primary name set
-    event Primary(address indexed owner, uint256 indexed id);
-    // Announce primary name cleared
-    event NoPrimary(address indexed sender);
-    // Announce name delegation
-    event Delegate(address indexed delegate, uint256 indexed id, uint256 indexed expiry);
-    // Announce name burn, store both name and derived ID
-    event Burn(address indexed owner, uint256 indexed id);
-    // Announce registration overpayment as tip
-    event Tip(address indexed sender, uint256 indexed id, uint256 indexed tip);
 
     /*//////////////////////////////////////////////////////////////
                              MODIFIERS
@@ -40,7 +19,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Require valid name owner
     modifier onlyNameOwner(string memory _name) {
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         require(nameOwner[id] != address(0), "NOT_OWNED");
         require(nameRegistry[id].expiry > block.timestamp, "NAME_EXPIRED");
         require(ownerOf(id) == msg.sender, "NOT_NAME_OWNER");
@@ -49,7 +28,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Require name to not be delegated
     modifier notDelegated(string memory _name) {
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         require(nameRegistry[id].delegationExpiry < block.timestamp, "NAME_DELEGATED");
         _;
     }
@@ -68,7 +47,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         address delegate;
         uint256 delegationExpiry;
     }
-
     // Name data storage / registry
     mapping(uint256 => Name) public nameRegistry;
 
@@ -86,7 +64,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         uint256 sixOrMore;
     }
     // storage for namesSold struct
-
     namesSold public soldCounts;
 
     /*//////////////////////////////////////////////////////////////
@@ -221,18 +198,18 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     //////////////////////////////////////////////////////////////*/
 
     // Converts string name to uint256 ID
-    function nameToID(string memory _name) internal pure returns (uint256) {
+    function _nameToID(string memory _name) internal pure returns (uint256) {
         return (uint256(keccak256(abi.encodePacked(_name))));
     }
 
     // Clear unnecessary information from previous owner
-    function clearName(uint256 id) internal {
+    function _clearName(uint256 id) internal {
         nameRegistry[id].delegate = address(0);
         nameRegistry[id].delegationExpiry = 0;
     }
 
     // Erase all name data for burn
-    function eraseName(uint256 id) internal {
+    function _eraseName(uint256 id) internal {
         nameRegistry[id].name = "";
         nameRegistry[id].expiry = 0;
         nameRegistry[id].delegate = address(0);
@@ -267,7 +244,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Returns proper VRGDA price for name based off string length
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
-    function priceName(uint256 _length) internal returns (uint256) {
+    function _priceName(uint256 _length) internal returns (uint256) {
         uint256 price;
         if (_length == 1) {
             price = getVRGDAPrice(_length, soldCounts.one);
@@ -286,7 +263,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     // Increments the proper sale counter based on string length
-    function incrementCounts(uint256 _length) internal {
+    function _incrementCounts(uint256 _length) internal {
         if (_length == 1) {
             soldCounts.one++;
         } else if (_length == 2) {
@@ -317,27 +294,27 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     //////////////////////////////////////////////////////////////*/
 
     // Set primary name, only callable by owner
-    function setPrimary(string memory _name) public onlyNameOwner(_name) {
-        uint256 id = nameToID(_name);
+    function setPrimary(string memory _name) public override onlyNameOwner(_name) {
+        uint256 id = _nameToID(_name);
         primaryName[msg.sender] = id;
         emit Primary(msg.sender, id);
     }
 
     // Clear primary name
-    function clearPrimary() public {
+    function clearPrimary() public override {
         primaryName[msg.sender] = 0;
         emit NoPrimary(msg.sender);
     }
 
     // Return address' primary name
-    function getPrimary(address _address) public view returns (string memory) {
-        uint256 id = primaryName[_address];
+    function getPrimary(address _target) external view override returns (string memory) {
+        uint256 id = primaryName[_target];
         return nameRegistry[id].name;
     }
 
     // Return name owner address
-    function getOwner(string memory _name) public view returns (address owner) {
-        uint256 id = nameToID(_name);
+    function getOwner(string memory _name) external view override returns (address) {
+        uint256 id = _nameToID(_name);
         return ownerOf(id);
     }
 
@@ -347,7 +324,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function _mint(string memory _name) internal {
         // Convert name string to uint256 id
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         // Set name ownership
         nameOwner[id] = msg.sender;
         // Instantiate name data / URI(?)
@@ -356,7 +333,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     function _register(string memory _name, uint256 _term) internal {
         // Convert name string to uint256 id
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         // Calculate expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 expiry = block.timestamp + (_term * 365 days);
@@ -382,7 +359,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Else, clear name and transfer from owner
         else {
             // Clears ancillary data
-            clearName(id);
+            _clearName(id);
             // Setting approval allows new owner to call safeTransferFrom()
             approvals[id] = owner;
             safeTransferFrom(ownerOf(id), msg.sender, id);
@@ -391,14 +368,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Update expiry
         nameRegistry[id].expiry = expiry;
         // Update counts
-        incrementCounts(length);
+        _incrementCounts(length);
 
         emit Register(owner, id, expiry);
     }
 
     function _burn(string memory _name) internal {
         // Convert name string to uint256 id
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         address owner = ownerOf(id); // For cleanliness
 
         // Make sure name is owned
@@ -412,7 +389,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Erase all name data
         delete approvals[id];
         delete nameOwner[id];
-        eraseName(id);
+        _eraseName(id);
 
         emit Burn(owner, id);
     }
@@ -421,14 +398,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                     PUBLIC SAFE REGISTER/BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    function safeRegister(string memory _name, uint256 _term) external payable {
+    function safeRegister(string memory _name, uint256 _term) public override payable {
         // Calculate name ID and string length
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
         // Calculate price
-        uint256 price = priceName(length);
+        uint256 price = _priceName(length);
         // Require msg.value meets or exceeds price
         require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
@@ -449,14 +426,14 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
-    function safeRegister(string memory _name, uint256 _term, bytes memory _data) external payable {
+    function safeRegister(string memory _name, uint256 _term, bytes memory _data) public override payable {
         // Calculate name ID and string length
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         uint256 length = stringLength(_name);
         require(length > 0, "MISSING_NAME");
 
         // Calculate price
-        uint256 price = priceName(length);
+        uint256 price = _priceName(length);
         // Require msg.value meets or exceeds price
         require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
@@ -477,7 +454,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         );
     }
 
-    function safeBurn(string memory _name) public onlyNameOwner(_name) {
+    function safeBurn(string memory _name) public override onlyNameOwner(_name) {
         _burn(_name);
     }
 
@@ -488,7 +465,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     // Internal transfer logic
     function _transfer(uint256 _id, address _recipient) internal {
         // Clear out ancillary name data
-        clearName(_id);
+        _clearName(_id);
         safeTransferFrom(msg.sender, _recipient, _id);
     }
 
@@ -498,7 +475,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         string memory _name,
         address _recipient
     ) public onlyNameOwner(_name) notDelegated(_name) {
-        uint256 id = nameToID(_name);
+        uint256 id = _nameToID(_name);
         _transfer(id, _recipient);
     }
 
