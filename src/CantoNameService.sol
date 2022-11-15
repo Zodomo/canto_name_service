@@ -177,7 +177,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         batchInitialize();
     }
 
-    // THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION
+    // ************** THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION ***************
     // Junk batch initialization so _register can query VRGDA function properly
     function testingInitialize() public onlyContractOwner {
         vrgdaBatch.vrgdaOne.individualTargetPrice = 
@@ -249,7 +249,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
     // Returns proper VRGDA price for name based off string length
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
-    function _priceName(uint256 _length) internal returns (uint256) {
+    function priceName(uint256 _length) public returns (uint256) {
         uint256 price;
         if (_length == 1) {
             price = getVRGDAPrice(_length, soldCounts.one);
@@ -416,7 +416,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         require(length > 0, "MISSING_NAME");
 
         // Calculate price
-        uint256 price = _priceName(length);
+        uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
         require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
@@ -448,7 +448,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         require(length > 0, "MISSING_NAME");
 
         // Calculate price
-        uint256 price = _priceName(length);
+        uint256 price = priceName(length);
         // Require msg.value meets or exceeds price
         require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
 
@@ -495,6 +495,43 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     ) public onlyNameOwner(_name) notDelegated(_name) {
         uint256 id = _nameToID(_name);
         _transfer(id, _recipient);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              RENEW LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Internal renewal logic
+    function _renew(uint256 _id, uint256 _term) internal {
+        // Calculate expiry timestamp
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 renewalTime = (_term * 365 days);
+        // Extend expiry by renewalTime
+        nameRegistry[_id].expiry += renewalTime;
+    }
+
+    // Process renewal by extending expiry
+    function renewName(
+        string memory _name,
+        uint256 _term
+    ) public payable onlyNameOwner(_name) {
+        // Generate name ID
+        uint256 id = _nameToID(_name);
+        // Calculate name character length
+        uint256 length = stringLength(_name);
+        // Use name character length to calculate current price
+        uint256 price = priceName(length);
+
+        // Require msg.value meets or exceeds renewal cost
+        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
+        
+        // Execute internal _renew logic
+        _renew(id, _term);
+
+        // Log overpayment as tip
+        if (msg.value > price) {
+            emit Tip(msg.sender, id, msg.value - price);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
