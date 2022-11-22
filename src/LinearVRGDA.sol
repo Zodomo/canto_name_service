@@ -13,12 +13,8 @@ import {
 
 // The below VRGDA contract is designed to sell tokens, but we will use it to sell names
 // Heavily modified version of LinearVRGDA from transmissions11 to allow for concurrent VRGDAs
-// Removed abstract declaration
 
 /// @title Variable Rate Gradual Dutch Auction
-/// @author transmissions11 <t11s@paradigm.xyz>
-/// @author FrankieIsLost <frankie@paradigm.xyz>
-/// @author Zodomo <zodomo@proton.me>
 /// @notice Sell tokens roughly according to an issuance schedule.
 contract LinearVRGDA {
     /*//////////////////////////////////////////////////////////////
@@ -66,14 +62,18 @@ contract LinearVRGDA {
     }
     vrgdaBatchData public vrgdaBatch;
 
+    /*//////////////////////////////////////////////////////////////
+                          VRGDA MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice Constructor nuked in favor of initialize() function, will be called in CantoNameService constructor
     /* /// @param _targetPrice The target price for a token if sold on pace, scaled by 1e18.
     /// @param _priceDecayPercent The percent price decays per unit of time with no sales, scaled by 1e18.
     /// @param _perTimeUnit The number of tokens to target selling in 1 full unit of time, scaled by 1e18. */
     constructor() {}
 
-    // Sets up each of the VRGDA storage structs individually
-    function initialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) internal {
+    // Initializes an individual VRGDA (can also reinitialize)
+    function _initialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) internal {
         if (_VRGDA == 1) {
             VRGDAData.one.targetPrice = _targetPrice;
             VRGDAData.one.priceDecayPercent = _priceDecayPercent;
@@ -109,29 +109,30 @@ contract LinearVRGDA {
         }
     }
 
-    function batchInitialize() internal {
-        require(vrgdaBatch.batchInitialized == false, "VRGDA batch already initialized");
-        initialize(1,
+    // Initializes all of the VRGDAs at once
+    function _batchInitialize() internal {
+        //require(vrgdaBatch.batchInitialized == false, "VRGDA batch already initialized");
+        _initialize(1,
             vrgdaBatch.vrgdaOne.individualTargetPrice,
             vrgdaBatch.vrgdaOne.individualPriceDecayPercent,
             vrgdaBatch.vrgdaOne.individualPerTimeUnit);
-        initialize(2,
+        _initialize(2,
             vrgdaBatch.vrgdaTwo.individualTargetPrice,
             vrgdaBatch.vrgdaTwo.individualPriceDecayPercent,
             vrgdaBatch.vrgdaTwo.individualPerTimeUnit);
-        initialize(1,
+        _initialize(1,
             vrgdaBatch.vrgdaThree.individualTargetPrice,
             vrgdaBatch.vrgdaThree.individualPriceDecayPercent,
             vrgdaBatch.vrgdaThree.individualPerTimeUnit);
-        initialize(1,
+        _initialize(1,
             vrgdaBatch.vrgdaFour.individualTargetPrice,
             vrgdaBatch.vrgdaFour.individualPriceDecayPercent,
             vrgdaBatch.vrgdaFour.individualPerTimeUnit);
-        initialize(1,
+        _initialize(1,
             vrgdaBatch.vrgdaFive.individualTargetPrice,
             vrgdaBatch.vrgdaFive.individualPriceDecayPercent,
             vrgdaBatch.vrgdaFive.individualPerTimeUnit);
-        vrgdaBatch.batchInitialized = true;
+        //vrgdaBatch.batchInitialized = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -141,7 +142,7 @@ contract LinearVRGDA {
     /// @notice Calculate the price of a token according to the VRGDA formula.
     /// @param _sold The total number of tokens that have been sold so far.
     /// @return The price of a token according to VRGDA, scaled by 1e18.
-    function getVRGDAPrice(uint256 _vrgda, uint256 _sold) public payable returns (uint256) {
+    function _getVRGDAPrice(uint256 _vrgda, uint256 _sold) internal view returns (uint256) {
         // Temporary VRGDA Data storage for specific name length
         int256 targetPrice;
         int256 decayConstant;
@@ -186,7 +187,7 @@ contract LinearVRGDA {
                             // Theoretically calling toWadUnsafe with sold can silently overflow but under
                             // any reasonable circumstance it will never be large enough. We use sold + 1 as
                             // the VRGDA formula's n param represents the nth token and sold is the n-1th token.
-                            timeSinceStart - getTargetSaleTime(toWadUnsafe(_sold + 1), perTimeUnit)
+                            timeSinceStart - _getTargetSaleTime(toWadUnsafe(_sold + 1), perTimeUnit)
                         )
                     )
                 )
@@ -198,7 +199,7 @@ contract LinearVRGDA {
     /// @param _sold A number of tokens sold, scaled by 1e18, to get the corresponding target sale time for.
     /// @return The target time the tokens should be sold by, scaled by 1e18, where the time is
     /// relative, such that 0 means the tokens should be sold immediately when the VRGDA begins.
-    function getTargetSaleTime(int256 _sold, int256 _perTimeUnit) public pure returns (int256) {
+    function _getTargetSaleTime(int256 _sold, int256 _perTimeUnit) internal pure returns (int256) {
         return unsafeWadDiv(_sold, _perTimeUnit);
     }
 }
