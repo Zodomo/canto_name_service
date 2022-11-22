@@ -15,20 +15,20 @@ interface IERC721 is IERC165 {
         address from,
         address to,
         uint tokenId
-    ) external;
+    ) external payable;
 
     function safeTransferFrom(
         address from,
         address to,
         uint tokenId,
         bytes calldata data
-    ) external;
+    ) external payable;
 
     function transferFrom(
         address from,
         address to,
         uint tokenId
-    ) external;
+    ) external payable;
 
     function approve(address to, uint tokenId) external;
     

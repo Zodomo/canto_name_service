@@ -21,7 +21,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     // Require valid name owner
     modifier onlyNameOwner(string memory _name) {
         uint256 id = nameToID(_name);
-        require(nameOwner[id] != address(0), "NOT_OWNED");
+        require(_nameOwner[id] != address(0), "NOT_OWNED");
         require(nameRegistry[id].expiry > block.timestamp, "NAME_EXPIRED");
         require(ownerOf(id) == msg.sender, "NOT_NAME_OWNER");
         _;
@@ -30,7 +30,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     // Require name delegate
     modifier onlyDelegate(string memory _name) {
         uint256 id = nameToID(_name);
-        require(nameOwner[id] != address(0), "NOT_DELEGATED");
+        require(_nameOwner[id] != address(0), "NOT_DELEGATED");
         require(nameRegistry[id].delegate > msg.sender, "NOT_DELEGATE");
         _;
     }
@@ -358,7 +358,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Convert name string to uint256 id
         uint256 id = nameToID(_name);
         // Set name ownership
-        nameOwner[id] = msg.sender;
+        _nameOwner[id] = msg.sender;
         // Instantiate name data / URI(?)
         nameRegistry[id].name = _name;
     }
@@ -382,7 +382,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         require(nameRegistry[id].expiry < block.timestamp, "NOT_AVAILABLE");
 
         // If no owner, register
-        if (nameOwner[id] == address(0)) {
+        if (_nameOwner[id] == address(0)) {
             // Increase owner's name count by 1
             // Counter overflow is incredibly unrealistic.
             unchecked {
@@ -426,7 +426,7 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
 
         // Erase all name data
         delete approvals[id];
-        delete nameOwner[id];
+        delete _nameOwner[id];
         _eraseName(id);
 
         emit Burn(owner, id);

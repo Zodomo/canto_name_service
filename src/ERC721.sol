@@ -16,14 +16,14 @@ abstract contract ERC721TokenReceiver {
 }
 
 // Inspired by Solmate (https://github.com/transmissions11/solmate/blob/main/src/tokens/ERC721.sol)
-abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
+contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
 
     /*//////////////////////////////////////////////////////////////
                               ERC165 LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Used to confirm we accept ERC721 assets
-    function supportsInterface(bytes4 interfaceId) public pure override returns (bool) {
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
         return
             interfaceId == 0x01ffc9a7 || // ERC165 Interface ID for ERC165
             interfaceId == 0x80ac58cd; // ERC165 Interface ID for ERC721
@@ -57,7 +57,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
     //////////////////////////////////////////////////////////////*/
 
     // uint256(bytes32) converted name to owner address
-    mapping(uint256 => address) internal nameOwner;
+    mapping(uint256 => address) internal _nameOwner;
     // Store how many names any owner owns
     mapping(address => uint256) internal _balanceOf;
 
@@ -69,8 +69,8 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
 
     // Return owner of name id
     function ownerOf(uint256 _id) public view override returns (address owner) {
-        require((owner = nameOwner[_id]) != address(0), "NOT_MINTED");
-        return nameOwner[_id];
+        require((owner = _nameOwner[_id]) != address(0), "NOT_MINTED");
+        return _nameOwner[_id];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -107,7 +107,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         address _spender,
         uint256 _id
     ) public override {
-        address owner = nameOwner[_id];
+        address owner = _nameOwner[_id];
         require(msg.sender == owner || operatorApprovals[owner][msg.sender], "NOT_AUTHORIZED");
         approvals[_id] = _spender;
         emit Approval(owner, _spender, _id);
@@ -140,8 +140,8 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         address from,
         address to,
         uint256 id
-    ) public override {
-        require(from == nameOwner[id], "SELF_TRANSFER");
+    ) public override payable {
+        require(from == _nameOwner[id], "SELF_TRANSFER");
         require(to != address(0), "ZERO_ADDRESS");
         require(
             msg.sender == from || operatorApprovals[from][msg.sender] || msg.sender == approvals[id],
@@ -156,7 +156,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         }
 
         // Set new name owner
-        nameOwner[id] = to;
+        _nameOwner[id] = to;
 
         // Clear approvals after transfer
         delete approvals[id];
@@ -169,7 +169,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         address from,
         address to,
         uint256 id
-    ) public override {
+    ) public override payable {
         transferFrom(from, to, id);
 
         require(
@@ -187,7 +187,7 @@ abstract contract ERC721 is IERC165, IERC721, ERC721TokenReceiver {
         address to,
         uint256 id,
         bytes calldata data
-    ) public override {
+    ) public override payable {
         transferFrom(from, to, id);
 
         require(
