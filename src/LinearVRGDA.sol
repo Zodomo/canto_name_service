@@ -62,6 +62,23 @@ contract LinearVRGDA {
     }
     vrgdaBatchData public vrgdaBatch;
 
+    // Stores token sold counts for VRGDA math
+    // Underscored variables are initialization-resistant totals for other purposes
+    struct counts {
+        uint256 _one;
+        uint256 one;
+        uint256 _two;
+        uint256 two;
+        uint256 _three;
+        uint256 three;
+        uint256 _four;
+        uint256 four;
+        uint256 _five;
+        uint256 five;
+        uint256 _extra;
+    }
+    counts public vrgdaCounts;
+
     /*//////////////////////////////////////////////////////////////
                           VRGDA MANAGEMENT
     //////////////////////////////////////////////////////////////*/
@@ -80,30 +97,35 @@ contract LinearVRGDA {
             VRGDAData.one.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.one.perTimeUnit = _perTimeUnit;
             VRGDAData.one.startTime = int256(block.timestamp);
+            vrgdaCounts.one = 0;
         } else if (_VRGDA == 2) {
             VRGDAData.two.targetPrice = _targetPrice;
             VRGDAData.two.priceDecayPercent = _priceDecayPercent;
             VRGDAData.two.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.two.perTimeUnit = _perTimeUnit;
             VRGDAData.two.startTime = int256(block.timestamp);
+            vrgdaCounts.two = 0;
         } else if (_VRGDA == 3) {
             VRGDAData.three.targetPrice = _targetPrice;
             VRGDAData.three.priceDecayPercent = _priceDecayPercent;
             VRGDAData.three.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.three.perTimeUnit = _perTimeUnit;
             VRGDAData.three.startTime = int256(block.timestamp);
+            vrgdaCounts.three = 0;
         } else if (_VRGDA == 4) {
             VRGDAData.four.targetPrice = _targetPrice;
             VRGDAData.four.priceDecayPercent = _priceDecayPercent;
             VRGDAData.four.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.four.perTimeUnit = _perTimeUnit;
             VRGDAData.four.startTime = int256(block.timestamp);
+            vrgdaCounts.four = 0;
         } else if (_VRGDA == 5) {
             VRGDAData.five.targetPrice = _targetPrice;
             VRGDAData.five.priceDecayPercent = _priceDecayPercent;
             VRGDAData.five.decayConstant = wadLn(1e18 - _priceDecayPercent);
             VRGDAData.five.perTimeUnit = _perTimeUnit;
             VRGDAData.five.startTime = int256(block.timestamp);
+            vrgdaCounts.five = 0;
         } else {
             revert("Zero or >five characters not applicable to VRGDA emissions");
         }

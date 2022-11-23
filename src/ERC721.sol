@@ -21,7 +21,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     using Strings for uint256;
 
     /*//////////////////////////////////////////////////////////////
-                STORAGE
+                GENERAL STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // Token name ("Canto Name Service")
@@ -44,6 +44,26 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     // Mapping from owner to operator approvals
     // Operators have control over all tokens owned by an address until revoked
     mapping(address => mapping(address => bool)) private _operatorApprovals;
+
+    /*//////////////////////////////////////////////////////////////
+                CNS STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    // Name data / URI(?) struct
+    struct Name {
+        string name;
+        uint256 expiry;
+        address delegate;
+        uint256 delegationExpiry;
+    }
+
+    // Name data storage / registry
+    mapping(uint256 => Name) public nameRegistry;
+
+    // Primary name storage, one tokenId per address
+    mapping(address => uint256) public primaryName;
+    // Inverse name lookup tokenId to address
+    mapping(uint256 => address) public currentPrimary;
 
     /*//////////////////////////////////////////////////////////////
                 CONSTRUCTOR
@@ -119,7 +139,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      * @dev Reverts if the `tokenId` has not been minted yet.
      */
     function _requireMinted(uint256 tokenId) internal view virtual {
-        require(_exists(tokenId), "ERC721: invalid token ID");
+        require(_exists(tokenId), "NOT_MINTED");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -146,7 +166,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address operator,
         bool approved
     ) internal virtual {
-        require(owner != operator, "ERC721: approve to caller");
+        require(owner != operator, "NOT_OPERATOR");
         _operatorApprovals[owner][operator] = approved;
         emit ApprovalForAll(owner, operator, approved);
     }
@@ -260,7 +280,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
                 return retval == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("ERC721: transfer to non ERC721Receiver implementer");
+                    revert("INVALID_RECIPIENT");
                 } else {
                     /// @solidity memory-safe-assembly
                     assembly {
@@ -298,7 +318,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         bytes memory data
     ) internal virtual {
         _transfer(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "ERC721: transfer to non ERC721Receiver implementer");
+        require(_checkOnERC721Received(from, to, tokenId, data), "UNSAFE_TRANSFER");
     }
 
     // Process requests without msg.data through one function
@@ -324,7 +344,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         _mint(to, tokenId);
         require(
             _checkOnERC721Received(address(0), to, tokenId, data),
-            "ERC721: transfer to non ERC721Receiver implementer"
+            "UNSAFE_TRANSFER"
         );
     }
 
@@ -345,13 +365,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      * Emits a {Transfer} event.
      */
     function _mint(address to, uint256 tokenId) internal virtual {
-        require(to != address(0), "ERC721: mint to the zero address");
-        require(!_exists(tokenId), "ERC721: token already minted");
+        // Require token not have valid, non-expired ownership
+        // Can't check for generic ownership as tokens expire but don't wipe data when they do
+        require(nameRegistry[tokenId].expiry < block.timestamp, "NOT_MINTABLE");
 
-        _beforeTokenTransfer(address(0), to, tokenId, 1);
+        address from = _ownerOf(tokenId);
 
-        // Check that tokenId was not minted by `_beforeTokenTransfer` hook
-        require(!_exists(tokenId), "ERC721: token already minted");
+        _beforeTokenTransfer(from, to, tokenId, 1);
 
         unchecked {
             // Will not overflow unless all 2**256 token ids are minted to the same owner.
@@ -363,9 +383,15 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
         _owners[tokenId] = to;
 
-        emit Transfer(address(0), to, tokenId);
+        emit Transfer(from, to, tokenId);
 
-        _afterTokenTransfer(address(0), to, tokenId, 1);
+        _afterTokenTransfer(from, to, tokenId, 1);
+    }
+
+    // Burn data that normally wouldn't get wiped in transfers
+    function _burnData(uint256 tokenId) internal virtual {
+        nameRegistry[tokenId].name = "";
+        nameRegistry[tokenId].expiry = 0;
     }
 
     /**
@@ -399,6 +425,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
         emit Transfer(owner, address(0), tokenId);
 
+        // Burn data that normally wouldn't get wiped in transfers
+        _burnData(tokenId);
+        
         _afterTokenTransfer(owner, address(0), tokenId, 1);
     }
 
@@ -422,13 +451,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) internal virtual {
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
-        require(to != address(0), "ERC721: transfer to the zero address");
+        require(ERC721.ownerOf(tokenId) == from, "INCORRECT_OWNER");
+        require(to != address(0), "ZERO_ADDRESS");
 
         _beforeTokenTransfer(from, to, tokenId, 1);
 
         // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
-        require(ERC721.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(ERC721.ownerOf(tokenId) == from, "INCORRECT_OWNER");
 
         // Clear approvals from the previous owner
         delete _tokenApprovals[tokenId];
@@ -450,8 +479,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     }
 
     /**
-     * @dev Hook that is called before any token transfer. This includes minting and burning. If {ERC721Consecutive} is
-     * used, the hook may be called as part of a consecutive (batch) mint, as indicated by `batchSize` greater than 1.
+     * @dev Hook that is called before any token transfer. This includes minting and burning.
+     * All registrar-specific security parameters are enforced here
      *
      * Calling conditions:
      *
@@ -461,27 +490,21 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      * - `from` and `to` are never both zero.
      * - `batchSize` is non-zero.
      *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     * Imposed conditions / actions:
+     *
+     * - Token must not be actively delegated
      */
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256, /* firstTokenId */
+        uint256 tokenId,
         uint256 batchSize
     ) internal virtual {
-        if (batchSize > 1) {
-            if (from != address(0)) {
-                _balances[from] -= batchSize;
-            }
-            if (to != address(0)) {
-                _balances[to] += batchSize;
-            }
-        }
+        require(nameRegistry[tokenId].delegationExpiry < block.timestamp, "TOKEN_DELEGATED");
     }
 
     /**
-     * @dev Hook that is called after any token transfer. This includes minting and burning. If {ERC721Consecutive} is
-     * used, the hook may be called as part of a consecutive (batch) mint, as indicated by `batchSize` greater than 1.
+     * @dev Hook that is called after any token transfer. This includes minting and burning.
      *
      * Calling conditions:
      *
@@ -491,12 +514,19 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      * - `from` and `to` are never both zero.
      * - `batchSize` is non-zero.
      *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     * Imposed conditions / actions:
+     *
+     * - Wipe token delegate, delegation expiry, and primary name assignment
      */
     function _afterTokenTransfer(
         address from,
         address to,
-        uint256 firstTokenId,
+        uint256 tokenId,
         uint256 batchSize
-    ) internal virtual {}
+    ) internal virtual {
+        nameRegistry[tokenId].delegate = address(0x0); // Clear delegate address
+        nameRegistry[tokenId].delegationExpiry = 0; // Clear delegation expiry
+        primaryName[currentPrimary[tokenId]] = 0; // Wipe primary address' primary name
+        currentPrimary[tokenId] = address(0x0); // Reset inverse lookup
+    }
 }

@@ -7,13 +7,6 @@ interface ICNS {
                               EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // Announce new contract owner added
-    event OwnerAdded(address indexed caller, address indexed owner);
-    // Announce new contract owner removed
-    event OwnerRemoved(address indexed caller, address indexed owner);
-    // Announce when contract owner withdraws
-    event Withdraw(address indexed owner, uint256 indexed value);
-
     // Announce name registration
     event Register(address indexed registrant, uint256 indexed id, uint256 indexed expiry);
     // Announce name renewal
