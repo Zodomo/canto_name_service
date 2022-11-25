@@ -162,33 +162,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                            DELEGATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Delegate name utilization rights to another address
-    function delegateName(
-        string memory _name,
-        address _delegate,
-        uint256 _term
-    ) public override onlyNameOwner(_name) notDelegated(_name) {
-        // Calculate name ID
-        uint256 id = nameToID(_name);
-
-        // If primary name, remove it
-        if (primaryName[msg.sender] == id) {
-            clearPrimary();
-        }
-
-        // Assign delegate address to name
-        nameRegistry[id].delegate = _delegate;
-
-        // Calculate expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        uint256 expiry = block.timestamp + (_term * 365 days);
-
-        // Save delegation expiry timestamp to registry storage
-        nameRegistry[id].delegationExpiry = expiry;
-
-        emit Delegate(_delegate, id, expiry);
-    }
-
     // Extend name delegation
     function extendDelegation(
         string memory _name,

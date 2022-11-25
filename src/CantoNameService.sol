@@ -266,6 +266,61 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
+                DELEGATION LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Internal delegation logic
+    // _expiry requires exact timestamp
+    function _delegate(uint256 _tokenId, address _delegate, uint256 _expiry) internal {
+        // Require delegation term not meet or exceed owner's expiry
+        require(nameRegistry[_tokenId].expiry > _expiry, "OWNERSHIP_EXPIRY");
+
+        // Set delegate address 
+        nameRegistry[_tokenId].delegate = _delegate;
+        // Save delegation expiry timestamp
+        nameRegistry[_tokenId].delegationExpiry = _expiry;
+
+        // If used as primary by owner, clear
+        if (primaryName[ERC721.ownerOf(_tokenId)] == _tokenId) {
+            primaryName[currentPrimary[_tokenId]] = 0; // Wipe primary address' primary name
+            currentPrimary[_tokenId] = address(0x0); // Reset inverse lookup
+        }
+    }
+
+    // Pass call with string through to primary logic
+    function delegateName(string memory _name, address _delegate, uint256 _term) public {
+        // Generate name ID
+        uint256 tokenId = nameToID(_name);
+        delegateName(tokenId, _delegate, _term);
+    }
+
+    // Allow owner, approved, or operator to delegate a name for a specific term in years
+    function delegateName(uint256 _tokenId, address _delegate, uint256 _term) public {
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+
+        // Calculate expiry timestamp
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 delegationExpiry = block.timestamp + (_term * 365 days);
+
+        _delegate(_tokenId, _delegate, delegationExpiry);
+    }
+
+    // Pass call with string through to primary logic
+    function delegateNameWithPrecision(string memory _name, address _delegate, uint256 _expiry) public {
+        uint256 tokenId = nameToID(_name);
+        delegateNameWithPrecision(tokenId, _delegate, _expiry);
+    }
+
+    // Process delegation with precise expiry timestamp if yearly term is too imprecise
+    function delegateNameWithPrecision(uint256 _tokenId, address _delegate, uint256 _expiry) public {
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+
+        _delegate(_tokenId, _delegate, delegationExpiry);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                 PAYMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
