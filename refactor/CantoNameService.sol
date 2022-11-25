@@ -12,49 +12,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
                           VRDGA MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    // Initialize a single VRGDA
-    // Can only be performed after batch initialization
-    function vrgdaInitialize(
-        uint256 _VRGDA,
-        int256 _targetPrice,
-        int256 _priceDecayPercent,
-        int256 _perTimeUnit
-    ) public override onlyContractOwner {
-        require(vrgdaBatch.batchInitialized == true, "VRGDA_BATCH_INIT");
-        initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
-    }
-
-    // Prep VRGDA data for batch initialization
-    function prepBatchInitialize(
-        uint256 _VRGDA,
-        int256 _targetPrice,
-        int256 _priceDecayPercent,
-        int256 _perTimeUnit
-    ) public override onlyContractOwner {
-        if (_VRGDA == 1) {
-            vrgdaBatch.vrgdaOne.individualTargetPrice = _targetPrice;
-            vrgdaBatch.vrgdaOne.individualPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.vrgdaOne.individualPerTimeUnit = _perTimeUnit;
-        } else if (_VRGDA == 2) {
-            vrgdaBatch.vrgdaTwo.individualTargetPrice = _targetPrice;
-            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.vrgdaTwo.individualPerTimeUnit = _perTimeUnit;
-        } else if (_VRGDA == 3) {
-            vrgdaBatch.vrgdaThree.individualTargetPrice = _targetPrice;
-            vrgdaBatch.vrgdaThree.individualPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.vrgdaThree.individualPerTimeUnit = _perTimeUnit;
-        } else if (_VRGDA == 4) {
-            vrgdaBatch.vrgdaFour.individualTargetPrice = _targetPrice;
-            vrgdaBatch.vrgdaFour.individualPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.vrgdaFour.individualPerTimeUnit = _perTimeUnit;
-        } else if (_VRGDA == 5) {
-            vrgdaBatch.vrgdaFive.individualTargetPrice = _targetPrice;
-            vrgdaBatch.vrgdaFive.individualPriceDecayPercent = _priceDecayPercent;
-            vrgdaBatch.vrgdaFive.individualPerTimeUnit = _perTimeUnit;
-        } else {
-            revert("Zero or >five characters not applicable to VRGDA emissions");
-        }
-    }
 
     // Initialize all VRGDAs
     // Can only be called once

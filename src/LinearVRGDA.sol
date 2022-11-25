@@ -14,6 +14,9 @@ import {
 // The below VRGDA contract is designed to sell tokens, but we will use it to sell names
 // Heavily modified version of LinearVRGDA from transmissions11 to allow for concurrent VRGDAs
 
+// Used to report what batch data is missing during batch initialization
+error MissingBatchData(uint256 vrgda, bool targetPrice, bool priceDecayPercent, bool perTimeUnit);
+
 /// @title Variable Rate Gradual Dutch Auction
 /// @notice Sell tokens roughly according to an issuance schedule.
 contract LinearVRGDA {
@@ -35,7 +38,7 @@ contract LinearVRGDA {
         int256 startTime;
     }
     // Mapping tracks each VRGDA struct via uint256 length
-    mapping(uint256 => VRGDA) internal vrgdaData;
+    mapping(uint256 => VRGDA) private vrgdaData;
 
     // Used to pre-stage data for batch initializing VRGDA structs
     struct batchData {
@@ -48,7 +51,7 @@ contract LinearVRGDA {
 
     // Tracks whether batch initialization has happened
     // Prevents resetting everything accidentally by only allowing batch initialization once
-    bool batchInitialized;
+    bool internal batchInitialized;
 
     // Stores token sold counts for VRGDA math
     struct counts {

@@ -18,6 +18,12 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     event Tip(address indexed tipper, uint256 indexed tip);
 
     /*//////////////////////////////////////////////////////////////
+                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    constructor() { }
+
+    /*//////////////////////////////////////////////////////////////
                 LIBRARY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -88,6 +94,63 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
             total += tokenCounts[i].total;
         }
         return total;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                VRGDA MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    // Initialize / Reset a single VRGDA
+    // Can only be performed after batch initialization
+    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
+    function vrgdaInit(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public {
+        require(batchInitialized == true, "INITIALIZE_BATCH");
+        _initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
+    }
+
+    // Prepare initialization data for each VRGDA
+    // Can only be called before batch initialization
+    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
+    function vrgdaPrep(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public {
+        require(batchInitialized == false, "BATCH_INITIALIZED");
+        if (_VRGDA > 0 && _VRGDA < 6) {
+            initData[_VRGDA].targetPrice = _targetPrice;
+            initData[_VRGDA].priceDecayPercent = _priceDecayPercent;
+            initData[_VRGDA].perTimeUnit = _perTimeUnit;
+        } else {
+            revert("INVALID_VRGDA");
+        }
+    }
+
+    // Initialize all VRGDAs, only callable once
+    // Checks to make sure all VRGDAs have data
+    // vrgdaInit can only be called after vrgdaBatch
+    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
+    function vrgdaBatch() public {
+        // Iteratively check all batch parameters for completeness
+        for (uint i = 1; i < 6; i++) {
+            if (initData[i].targetPrice == 0) {
+                revert MissingBatchData(i, true, false, false);
+            }
+            if (initData[i].priceDecayPercent == 0) {
+                revert MissingBatchData(i, false, true, false);
+            }
+            if (initData[i].perTimeUnit == 0) {
+                revert MissingBatchData(i, false, false, true);
+            }
+        }
+        _batchInitialize();
+    }
+
+    // ************** THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION ***************
+    // Cheat batch init for testing purposes
+    function vrgdaTest() public {
+        for (uint i = 1; i < 6; i++) {
+            initData[i].targetPrice = 1e18;
+            initData[i].priceDecayPercent = 0.2e18;
+            initData[i].perTimeUnit = 1e18;
+        }
+        vrgdaBatch();
     }
 
     /*//////////////////////////////////////////////////////////////
