@@ -157,25 +157,4 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
         // Use registration and remove from allowlist
         burnReservation(id);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                           DELEGATION LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    // Extend name delegation
-    function extendDelegation(
-        string memory _name,
-        uint256 _term
-    ) public override onlyNameOwner(_name) {
-        // Calculate name ID
-        uint256 id = nameToID(_name);
-
-        // Calculate new expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        uint256 renewalTime = (_term * 365 days);
-        // Extend delegation expiry by renewalTime
-        nameRegistry[id].delegationExpiry += renewalTime;
-
-        emit Extend(nameRegistry[id].delegate, id, nameRegistry[id].delegationExpiry);
-    }
 }

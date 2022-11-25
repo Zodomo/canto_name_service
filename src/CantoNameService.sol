@@ -111,8 +111,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
-                MINT LOGIC
+                REGISTER LOGIC
     //////////////////////////////////////////////////////////////*/
+
+    // Register functions are not overloaded because the name string is required
+    // Can't generate name from tokenId
 
     // Expired names will be minted again, internal logic blocks mints of current names
     // Recipient checking is processed with safe call
@@ -190,9 +193,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Only owner can burn if name is undelegated
-    function burnName(uint256 tokenId) public {
-        require(msg.sender == ERC721.ownerOf(tokenId), "NOT_OWNER");
-        _burn(tokenId);
+    function burnName(uint256 _tokenId) public {
+        require(msg.sender == ERC721.ownerOf(_tokenId), "NOT_OWNER");
+        _burn(_tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -245,18 +248,24 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 PRIMARY NAME LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    // Pass call with string through to primary logic
+    function setPrimary(string memory _name) public {
+        uint256 tokenId = nameToID(_name);
+        setPrimary(tokenId);
+    }
+
     // Set primary name
     // Allow owner to call only if undelegated
-    function setPrimary(uint256 tokenId) public {
+    function setPrimary(uint256 _tokenId) public {
         // Only owner or valid delegate can call
-        require((msg.sender == ERC721.ownerOf(tokenId) &&
-                nameRegistry[tokenId].delegationExpiry < block.timestamp) || 
-            (msg.sender == nameRegistry[tokenId].delegate && 
-                nameRegistry[tokenId].delegationExpiry > block.timestamp));
+        require((msg.sender == ERC721.ownerOf(_tokenId) &&
+                nameRegistry[_tokenId].delegationExpiry < block.timestamp) || 
+            (msg.sender == nameRegistry[_tokenId].delegate && 
+                nameRegistry[_tokenId].delegationExpiry > block.timestamp));
 
         // Set primary name data
-        primaryName[msg.sender] = tokenId;
-        currentPrimary[tokenId] = msg.sender;
+        primaryName[msg.sender] = _tokenId;
+        currentPrimary[_tokenId] = msg.sender;
     }
 
     // Return address' primary name
