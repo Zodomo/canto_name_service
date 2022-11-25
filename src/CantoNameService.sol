@@ -62,52 +62,32 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     // _length parameter directly calls corresponding VRGDA via getVRGDAPrice()
     function priceName(uint256 _length) public view returns (uint256) {
         uint256 price;
-        if (_length == 1) {
-            price = _getVRGDAPrice(_length, vrgdaCounts.one);
-        } else if (_length == 2) {
-            price = _getVRGDAPrice(_length, vrgdaCounts.two);
-        } else if (_length == 3) {
-            price = _getVRGDAPrice(_length, vrgdaCounts.three);
-        } else if (_length == 4) {
-            price = _getVRGDAPrice(_length, vrgdaCounts.four);
-        } else if (_length == 5) {
-            price = _getVRGDAPrice(_length, vrgdaCounts.five);
+        if (_length > 0 && _length < 6) {
+            price = _getVRGDAPrice(_length, tokenCounts[_length].current);
         } else {
             price = 1 ether;
         }
         return price;
     }
 
-    // Increments the proper counters based on string length
+    // Increments the proper counters based on string length (accurate counts through 5)
     function _incrementCounts(uint256 _length) internal {
-        if (_length == 1) {
-            vrgdaCounts._one++;
-            vrgdaCounts.one++;
-        } else if (_length == 2) {
-            vrgdaCounts._two++;
-            vrgdaCounts.two++;
-        } else if (_length == 3) {
-            vrgdaCounts._three++;
-            vrgdaCounts.three++;
-        } else if (_length == 4) {
-            vrgdaCounts._four++;
-            vrgdaCounts.four++;
-        } else if (_length == 5) {
-            vrgdaCounts._five++;
-            vrgdaCounts.five++;
-        } else if (_length >= 6) {
-            vrgdaCounts._extra++;
-        } else {
-            revert("ZERO_CHARACTERS");
+        if (_length > 0 && _length < 6) {
+            tokenCounts[_length].current++;
+            tokenCounts[_length].total++;
+        } else { // 6 set as upper limit currently to make totalNamesSold logic easy
+            tokenCounts[6].current++;
+            tokenCounts[6].total++;
         }
     }
 
     // Return total number of names sold
     function totalNamesSold() public view returns (uint256) {
-        return (
-            vrgdaCounts._one + vrgdaCounts._two + vrgdaCounts._three + 
-                vrgdaCounts._four + vrgdaCounts._five + vrgdaCounts._extra
-        );
+        uint256 total;
+        for (uint i = 1; i < 7; i++) {
+            total += tokenCounts[i].total;
+        }
+        return total;
     }
 
     /*//////////////////////////////////////////////////////////////
