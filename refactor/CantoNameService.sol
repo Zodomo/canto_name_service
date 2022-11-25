@@ -159,45 +159,6 @@ contract CantoNameService is ICNS, ERC721("Canto Name Service", "CNS"), LinearVR
     }
 
     /*//////////////////////////////////////////////////////////////
-                              RENEW LOGIC
-    //////////////////////////////////////////////////////////////*/
-
-    // Internal renewal logic
-    function _renew(uint256 _id, uint256 _term) internal {
-        // Calculate new expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        uint256 renewalTime = (_term * 365 days);
-        // Extend expiry by renewalTime
-        nameRegistry[_id].expiry += renewalTime;
-
-        emit Renew(msg.sender, _id, nameRegistry[_id].expiry);
-    }
-
-    // Process renewal by extending expiry
-    function renewName(
-        string memory _name,
-        uint256 _term
-    ) public payable override onlyNameOwner(_name) {
-        // Generate name ID
-        uint256 id = nameToID(_name);
-        // Calculate name character length
-        uint256 length = stringLength(_name);
-        // Use name character length to calculate current price
-        uint256 price = priceName(length);
-
-        // Require msg.value meets or exceeds renewal cost
-        require(msg.value >= (price * _term), "INSUFFICIENT_FUNDS");
-        
-        // Execute internal _renew logic
-        _renew(id, _term);
-
-        // Log overpayment as tip
-        if (msg.value > price) {
-            emit Tip(msg.sender, id, msg.value - price);
-        }
-    }
-
-    /*//////////////////////////////////////////////////////////////
                            DELEGATION LOGIC
     //////////////////////////////////////////////////////////////*/
 

@@ -111,7 +111,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
-                PUBLIC MINT FUNCTIONS
+                MINT LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Expired names will be minted again, internal logic blocks mints of current names
@@ -135,7 +135,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         // Increment counts for VRGDA logic
         _incrementCounts(length);
 
-        // Calculate tip if any and announce
+        // Calculate overpayment tip if any and announce
         if (msg.value > price * _term) {
             emit Tip(msg.sender, msg.value - (price * _term));
         }
@@ -167,7 +167,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         // Increment counts for VRGDA logic
         _incrementCounts(length);
 
-        // Calculate tip if any and announce
+        // Calculate overpayment tip if any and announce
         if (msg.value > price * _term) {
             emit Tip(msg.sender, msg.value - (price * _term));
         }
@@ -179,7 +179,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
-                PUBLIC BURN FUNCTIONS
+                BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // burnName function call using name
@@ -193,6 +193,52 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     function burnName(uint256 tokenId) public {
         require(msg.sender == ERC721.ownerOf(tokenId), "NOT_OWNER");
         _burn(tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                RENEW LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Internal renewal logic
+    function _renew(uint256 _tokenId, uint256 _term) internal {
+        // Name must not be expired to be renewed
+        require(nameRegistry[_tokenId].expiry > block.timestamp, "NAME_EXPIRED");
+
+        // Calculate new expiry timestamp
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 renewalTime = (_term * 365 days);
+        // Extend expiry by renewalTime
+        nameRegistry[_tokenId].expiry += renewalTime;
+    }
+
+    // renewName function that handles name string instead of tokenId
+    function renewName(string memory _name, uint256 _term) public payable {
+        // Generate name ID
+        uint256 tokenId = nameToID(_name);
+        renewName(tokenId, _term);
+    }
+
+    // Primary renewal function that calls all renewal logic
+    // Payment must be sufficient before renewal logic executes
+    // Anyone can renew for anyone else
+    function renewName(uint256 _tokenId, uint256 _term) public payable {
+        // Retrieve name string
+        string memory name = nameRegistry[_tokenId].name;
+        // Calculate name string character length
+        uint256 length = stringLength(name);
+        // Use name character length to calculate current price
+        uint256 price = priceName(length);
+
+        // Require msg.value meets or exceeds renewal cost
+        require(msg.value >= (price * _term), "INSUFFICIENT_PAYMENT");
+
+        // Execute internal renewal logic
+        _renew(_tokenId, _term);
+
+        // Calculate overpayment tip if any and announce
+        if (msg.value > price * _term) {
+            emit Tip(msg.sender, msg.value - (price * _term));
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
