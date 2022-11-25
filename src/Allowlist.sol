@@ -9,6 +9,8 @@ contract Allowlist {
 
     // Log verified users
     event Verify(address indexed user);
+    // Log reservations
+    event Reserve(address indexed reserver, uint256 indexed tokenId, uint256 indexed expiry);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -49,8 +51,8 @@ contract Allowlist {
         return nameReservation[_reserver];
     }
     // Return reserver address
-    function getReserver(uint256 _id) public view returns (address) {
-        return nameReserver[_id];
+    function getReserver(uint256 _tokenId) public view returns (address) {
+        return nameReserver[_tokenId];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -151,11 +153,11 @@ contract Allowlist {
     //////////////////////////////////////////////////////////////*/
 
     // Reserve name after passing CAPTCHA and ensuring reservation hasn't been used
-    function reserveName(uint256 _id) public passCAPTCHA reservationValid {
+    function reserveName(uint256 _tokenId) public passCAPTCHA reservationValid {
         // Confirm name hasn't been reserved
-        require(nameReserver[_id] == address(0), "NAME_RESERVED");
+        require(nameReserver[_tokenId] == address(0), "NAME_RESERVED");
         // Block redundant reservations
-        require(nameReserver[_id] != msg.sender, "ALREADY_RESERVED");
+        require(nameReserver[_tokenId] != msg.sender, "ALREADY_RESERVED");
 
         // If another name has been reserved, clear the old name's reserver before processing new name
         if (nameReservation[msg.sender] != 0) {
@@ -163,9 +165,11 @@ contract Allowlist {
         }
         
         // Set new name reservation
-        nameReservation[msg.sender] = _id;
-        nameReserver[_id] = msg.sender;
+        nameReservation[msg.sender] = _tokenId;
+        nameReserver[_tokenId] = msg.sender;
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         reservationExpiry[msg.sender] = block.timestamp + 365 days;
+
+        emit Reserve(msg.sender, _tokenId, reservationExpiry[msg.sender]);
     }
 }

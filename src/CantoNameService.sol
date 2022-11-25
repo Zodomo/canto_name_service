@@ -13,10 +13,22 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // Announce contract withdrawals
-    event Withdraw(address indexed recipient, uint256 indexed value);
+    // Announce name registration
+    event Register(address indexed registrant, uint256 indexed id, uint256 indexed expiry);
+    // Announce name renewal
+    event Renew(address indexed owner, uint256 indexed id, uint256 indexed expiry);
+    // Announce primary name set
+    event Primary(address indexed owner, uint256 indexed id);
+    // Announce name delegation
+    event Delegate(address indexed delegate, uint256 indexed id, uint256 indexed expiry);
+    // Announce delegation extension
+    event Extend(address indexed delegate, uint256 indexed id, uint256 indexed expiry);
+    // Announce name burn, store both name and derived ID
+    event Burn(address indexed owner, uint256 indexed id);
     // Announce payable function overpayments as tips
     event Tip(address indexed tipper, uint256 indexed tip);
+    // Announce contract withdrawals
+    event Withdraw(address indexed recipient, uint256 indexed value);
 
     /*//////////////////////////////////////////////////////////////
                 CONSTRUCTOR
@@ -213,6 +225,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         // Populate Name struct data
         nameRegistry[_tokenId].name = _name;
         nameRegistry[_tokenId].expiry = _expiry;
+
+        emit Register(ERC721.ownerOf(_tokenId), _tokenId, _expiry);
     }
 
     // Recipient checking is processed with safe call
@@ -262,7 +276,6 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         // Require price is fully paid
         require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
         
-
         // Call internal mint logic
         _mint(_to, tokenId);
 
@@ -293,6 +306,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     function burnName(uint256 _tokenId) public {
         require(msg.sender == ERC721.ownerOf(_tokenId), "NOT_OWNER");
         _burn(_tokenId);
+
+        emit Burn(msg.sender, _tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -300,15 +315,14 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     //////////////////////////////////////////////////////////////*/
 
     // Internal renewal logic
-    function _renew(uint256 _tokenId, uint256 _term) internal {
+    function _renew(uint256 _tokenId, uint256 _newExpiry) internal {
         // Name must not be expired to be renewed
         require(nameRegistry[_tokenId].expiry >= block.timestamp, "NAME_EXPIRED");
 
-        // Calculate new expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        uint256 renewalTime = (_term * 365 days);
-        // Extend expiry by renewalTime
-        nameRegistry[_tokenId].expiry += renewalTime;
+        // Update expiry
+        nameRegistry[_tokenId].expiry == _newExpiry;
+
+        emit Renew(ERC721.ownerOf(_tokenId), _tokenId, _newExpiry);
     }
 
     // Pass call with string through to primary logic
@@ -328,12 +342,15 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         uint256 length = stringLength(name);
         // Use name character length to calculate current price
         uint256 price = priceName(length);
+        // Calculate new expiry timestamp
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 newExpiry = nameRegistry[_tokenId].expiry + (_term * 365 days);
 
         // Require msg.value meets or exceeds renewal cost
         require(msg.value >= (price * _term), "INSUFFICIENT_PAYMENT");
 
         // Execute internal renewal logic
-        _renew(_tokenId, _term);
+        _renew(_tokenId, newExpiry);
 
         // Calculate overpayment tip if any and announce
         if (msg.value > price * _term) {
@@ -363,6 +380,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         // Set primary name data
         primaryName[msg.sender] = _tokenId;
         currentPrimary[_tokenId] = msg.sender;
+
+        emit Primary(msg.sender, _tokenId);
     }
 
     // Return address' primary name
@@ -393,6 +412,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
             primaryName[currentPrimary[_tokenId]] = 0; // Wipe primary address' primary name
             currentPrimary[_tokenId] = address(0x0); // Reset inverse lookup
         }
+
+        emit Delegate(delegate_, _tokenId, _expiry);
     }
 
     // Pass call with string through to primary logic
@@ -436,6 +457,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         require(nameRegistry[_tokenId].delegationExpiry >= block.timestamp, "DELEGATION_INACTIVE");
 
         nameRegistry[_tokenId].delegationExpiry = _newExpiry;
+
+        emit Extend(nameRegistry[_tokenId].delegate, _tokenId, _newExpiry);
     }
 
     // Pass call with string through to primary logic
@@ -481,6 +504,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     function withdraw() public {
         (bool success,) = msg.sender.call{value: address(this).balance}("");
         require(success);
+
         emit Withdraw(msg.sender, address(this).balance);
     }
 

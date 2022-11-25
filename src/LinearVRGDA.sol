@@ -24,6 +24,8 @@ contract LinearVRGDA {
                 VRGDA STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    event Initialized(uint256 indexed vrgda, uint256 indexed timestamp);
+
     // All values in VRGDA represent 18 decimal fixed point number
     struct VRGDA {
         // Target price for a tokenamen, to be scaled according to sales pace.
@@ -80,6 +82,8 @@ contract LinearVRGDA {
             vrgdaData[_VRGDA].perTimeUnit = _perTimeUnit;
             vrgdaData[_VRGDA].startTime = int256(block.timestamp);
             tokenCounts[_VRGDA].current = 0;
+            
+            emit Initialized(_VRGDA, block.timestamp);
         } else {
             revert("INVALID_VRGDA");
         }
