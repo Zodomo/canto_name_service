@@ -3,10 +3,11 @@ pragma solidity ^0.8.17;
 
 import "./ERC721.sol";
 import "./LinearVRGDA.sol";
+import "./Allowlist.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, Ownable, ReentrancyGuard {
+contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, Allowlist(600000), Ownable, ReentrancyGuard {
 
     /*//////////////////////////////////////////////////////////////
                 EVENTS
@@ -154,13 +155,66 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
+                ALLOWLIST LOGIC
+    //////////////////////////////////////////////////////////////*/
+
+    // Check to see if name is reserved
+    function isReserved(uint256 _tokenId) public view returns (bool) {
+        if (nameReserver[_tokenId] != address(0x0)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    // Check to make sure reservation is valid
+    function _validateReservation(uint256 _tokenId) internal view {
+        require(nameReserver[_tokenId] == msg.sender, "NOT_RESERVER");
+        require(nameReservation[msg.sender] == _tokenId, "INVALID_RESERVATION");
+    }
+
+    // Pass call with string through to primary logic
+    function burnReservation(string memory _name) public {
+        uint256 tokenId = nameToID(_name);
+        burnReservation(tokenId);
+    }
+
+    // Burn reservation, releasing it for others
+    function burnReservation(uint256 _tokenId) public {
+        // Check to make sure reservation is valid
+        _validateReservation(_tokenId);
+
+        // Wipe out all reservation information
+        delete nameReserver[_tokenId];
+        delete nameReservation[msg.sender];
+        delete reservationExpiry[msg.sender];
+    }
+
+
+
+    /*//////////////////////////////////////////////////////////////
                 REGISTER LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Register functions are not overloaded because the name string is required
     // Can't generate name from tokenId
-
     // Expired names will be minted again, internal logic blocks mints of current names
+    // Anyone can register names to anyone
+
+    // Internal register logic
+    function _register(string memory _name, uint256 _tokenId, uint256 _expiry) internal {
+        if (isReserved(_tokenId)) {
+            // Require recipient be reserver if name is reserved
+            _validateReservation(_tokenId);
+            // Consume reservation
+            burnReservation(_tokenId);
+        }
+
+        // Populate Name struct data
+        nameRegistry[_tokenId].name = _name;
+        nameRegistry[_tokenId].expiry = _expiry;
+    }
+
     // Recipient checking is processed with safe call
     function safeRegister(address _to, string memory _name, uint256 _term) public payable {
         // Generate tokenId from name string
@@ -169,14 +223,19 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
         require(length > 0, "MISSING_NAME");
         // Require price is fully paid
         require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
 
-        // Call critical safe mint logic
+        // Call internal safe mint logic
         _safeMint(_to, tokenId);
+
+        // Call internal register logic
+        _register(_name, tokenId, expiry);
 
         // Increment counts for VRGDA logic
         _incrementCounts(length);
@@ -185,14 +244,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         if (msg.value > price * _term) {
             emit Tip(msg.sender, msg.value - (price * _term));
         }
-
-        // Populate name struct data
-        nameRegistry[tokenId].name = _name;
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        nameRegistry[tokenId].expiry = block.timestamp + (_term * 365 days);
     }
 
-    // Expired names will be minted again, internal logic blocks mints of current names
     // Recipient checking is not processed with this call
     function unsafeRegister(address _to, string memory _name, uint256 _term) public payable {
         // Generate tokenId from name string
@@ -201,14 +254,20 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
         require(length > 0, "MISSING_NAME");
         // Require price is fully paid
         require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
+        
 
-        // Call critical mint logic
+        // Call internal mint logic
         _mint(_to, tokenId);
+
+        // Call internal register logic
+        _register(_name, tokenId, expiry);
 
         // Increment counts for VRGDA logic
         _incrementCounts(length);
@@ -217,11 +276,6 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         if (msg.value > price * _term) {
             emit Tip(msg.sender, msg.value - (price * _term));
         }
-
-        // Populate name struct data
-        nameRegistry[tokenId].name = _name;
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        nameRegistry[tokenId].expiry = block.timestamp + (_term * 365 days);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -257,7 +311,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         nameRegistry[_tokenId].expiry += renewalTime;
     }
 
-    // renewName function that handles name string instead of tokenId
+    // Pass call with string through to primary logic
     function renewName(string memory _name, uint256 _term) public payable {
         // Generate name ID
         uint256 tokenId = nameToID(_name);

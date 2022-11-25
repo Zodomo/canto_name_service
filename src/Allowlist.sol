@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-// Inspired by ERC721C https://github.com/transmissions11/ERC721C
+// Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
 contract Allowlist {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
     // Log verified users
-    event Verified(address indexed user);
+    event Verify(address indexed user);
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -16,7 +16,7 @@ contract Allowlist {
 
     // Require CAPTCHA passed
     modifier passCAPTCHA() {
-        require(hasPassedCAPTCHA[msg.sender], "MUST_PASS_CAPTCHA");
+        require(hasPassedCAPTCHA[msg.sender], "PASS_CAPTCHA");
         _;
     }
 
@@ -31,15 +31,18 @@ contract Allowlist {
     //////////////////////////////////////////////////////////////*/
 
     // User CAPTCHA verification
-    mapping(address => bool) public hasPassedCAPTCHA;
+    mapping(address => bool) internal hasPassedCAPTCHA;
     // Tracks whether user has used their one reservation
-    mapping(address => bool) public reservationUsed;
+    mapping(address => bool) internal reservationUsed;
     // Stores reservation expiry timestamp, currently 365 days after reservation
-    mapping(address => uint256) public reservationExpiry;
+    mapping(address => uint256) internal reservationExpiry;
 
     // Name reservation mappings to assist with lookups
     mapping(address => uint256) public nameReservation;
     mapping(uint256 => address) public nameReserver;
+
+    // Cutoff timestamp
+    uint256 cutoff;
 
     // Return reserved ID
     function getReservation(address _reserver) public view returns (uint256) {
@@ -82,9 +85,10 @@ contract Allowlist {
                                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor() {
+    constructor(uint256 _cutoff) {
         INITIAL_CHAIN_ID = block.chainid;
         INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
+        cutoff = block.timestamp + _cutoff;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,7 +136,7 @@ contract Allowlist {
 
         hasPassedCAPTCHA[msg.sender] = true;
 
-        emit Verified(msg.sender);
+        emit Verify(msg.sender);
     }
 
     // Callable verify function that only requires signature argument
@@ -161,6 +165,7 @@ contract Allowlist {
         // Set new name reservation
         nameReservation[msg.sender] = _id;
         nameReserver[_id] = msg.sender;
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         reservationExpiry[msg.sender] = block.timestamp + 365 days;
     }
 }
