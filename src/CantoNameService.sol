@@ -14,6 +14,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
 
     // Announce contract withdrawals
     event Withdraw(address indexed recipient, uint256 indexed value);
+    // Announce payable function overpayments as tips
+    event Tip(address indexed tipper, uint256 indexed tip);
 
     /*//////////////////////////////////////////////////////////////
                 LIBRARY FUNCTIONS
@@ -22,6 +24,12 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     // Converts string name to uint256 tokenId
     function nameToID(string memory _name) public pure returns (uint256) {
         return (uint256(keccak256(abi.encodePacked(_name))));
+    }
+
+    // Return name owner address
+    function getNameOwner(string memory _name) public view returns (address) {
+        uint256 tokenId = nameToID(_name);
+        return ownerOf(tokenId);
     }
 
     // Return string length, properly counts all Unicode characters
@@ -103,7 +111,79 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
-                PRIMARY NAME SERVICE LOGIC
+                PUBLIC MINT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // Expired names will be minted again, internal logic blocks mints of current names
+    // Recipient checking is processed with safe call
+    function safeRegister(address _to, string memory _name, uint256 _term) public payable {
+        // Generate tokenId from name string
+        uint256 tokenId = nameToID(_name);
+        // Calculate name character length
+        uint256 length = stringLength(_name);
+        // Calculate price based off name length
+        uint256 price = priceName(length);
+
+        // Require valid name
+        require(length > 0, "MISSING_NAME");
+        // Require price is fully paid
+        require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
+
+        // Call critical safe mint logic
+        _safeMint(_to, tokenId);
+
+        // Increment counts for VRGDA logic
+        _incrementCounts(length);
+
+        // Calculate tip if any and announce
+        if (msg.value > price * _term) {
+            emit Tip(msg.sender, msg.value - (price * _term));
+        }
+
+        // Populate name struct data
+        nameRegistry[tokenId].name = _name;
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        nameRegistry[tokenId].expiry = block.timestamp + (_term * 365 days);
+    }
+
+    // Expired names will be minted again, internal logic blocks mints of current names
+    // Recipient checking is not processed with this call
+    function unsafeRegister(address _to, string memory _name, uint256 _term) public payable {
+        // Generate tokenId from name string
+        uint256 tokenId = nameToID(_name);
+        // Calculate name character length
+        uint256 length = stringLength(_name);
+        // Calculate price based off name length
+        uint256 price = priceName(length);
+
+        // Require valid name
+        require(length > 0, "MISSING_NAME");
+        // Require price is fully paid
+        require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
+
+        // Call critical mint logic
+        _mint(_to, tokenId);
+
+        // Increment counts for VRGDA logic
+        _incrementCounts(length);
+
+        // Calculate tip if any and announce
+        if (msg.value > price * _term) {
+            emit Tip(msg.sender, msg.value - (price * _term));
+        }
+
+        // Populate name struct data
+        nameRegistry[tokenId].name = _name;
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        nameRegistry[tokenId].expiry = block.timestamp + (_term * 365 days);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                PUBLIC BURN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /*//////////////////////////////////////////////////////////////
+                PRIMARY NAME LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Set primary name
@@ -124,12 +204,6 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     function getPrimary(address _target) public view returns (string memory) {
         uint256 tokenId = primaryName[_target];
         return nameRegistry[tokenId].name;
-    }
-
-    // Return name owner address
-    function getOwner(string memory _name) public view returns (address) {
-        uint256 tokenId = nameToID(_name);
-        return ownerOf(tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////

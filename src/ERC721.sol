@@ -367,7 +367,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     function _mint(address to, uint256 tokenId) internal virtual {
         // Require token not have valid, non-expired ownership
         // Can't check for generic ownership as tokens expire but don't wipe data when they do
-        require(nameRegistry[tokenId].expiry < block.timestamp, "NOT_MINTABLE");
+        require(nameRegistry[tokenId].expiry < block.timestamp, "NOT_AVAILABLE");
+        // Prevent mints to zero address
+        require(to != address(0x0), "ZERO_ADDRESS");
 
         address from = _ownerOf(tokenId);
 
@@ -379,6 +381,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
             // this ever happens. Might change if we allow batch minting.
             // The ERC fails to describe this case.
             _balances[to] += 1;
+        }
+
+        // If expired name, reduce prior owner's name balance count
+        if (from != address(0x0)) {
+            unchecked {
+                _balances[from] -= 1;
+            }
         }
 
         _owners[tokenId] = to;
@@ -516,7 +525,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * Imposed conditions / actions:
      *
-     * - Wipe token delegate, delegation expiry, and primary name assignment
+     * - Wipe token approval, delegate, delegation expiry, and primary name assignment
      */
     function _afterTokenTransfer(
         address from,
@@ -524,6 +533,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         uint256 tokenId,
         uint256 batchSize
     ) internal virtual {
+        delete _tokenApprovals[tokenId];
         nameRegistry[tokenId].delegate = address(0x0); // Clear delegate address
         nameRegistry[tokenId].delegationExpiry = 0; // Clear delegation expiry
         primaryName[currentPrimary[tokenId]] = 0; // Wipe primary address' primary name
