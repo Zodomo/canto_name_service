@@ -18,7 +18,7 @@ import {
 /// @notice Sell tokens roughly according to an issuance schedule.
 contract LinearVRGDA {
     /*//////////////////////////////////////////////////////////////
-                          VRGDA PARAMETERS
+                VRGDA STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // All values in VRGDA represent 18 decimal fixed point number
@@ -34,50 +34,29 @@ contract LinearVRGDA {
         // Block timestamp VRGDA initialized in
         int256 startTime;
     }
+    // Mapping tracks each VRGDA struct via uint256 length
+    mapping(uint256 => VRGDA) internal vrgdaData;
 
-    // VRGDA struct name corresponds with how many characters in name length
-    struct vrgdaData {
-        VRGDA one;
-        VRGDA two;
-        VRGDA three;
-        VRGDA four;
-        VRGDA five;
+    // Used to pre-stage data for batch initializing VRGDA structs
+    struct batchData {
+        int256 targetPrice;
+        int256 priceDecayPercent;
+        int256 perTimeUnit;
     }
-    vrgdaData public VRGDAData;
+    // Mapping allows for dynamic access of all batch data for batch initialization
+    mapping(uint256 => batchData) internal initData;
 
-    struct individualVrgda {
-        int256 individualTargetPrice;
-        int256 individualPriceDecayPercent;
-        int256 individualPerTimeUnit;
-    }
-    
-    // Stores VRGDA init data for batch initialization
-    struct vrgdaBatchData {
-        individualVrgda vrgdaOne;
-        individualVrgda vrgdaTwo;
-        individualVrgda vrgdaThree;
-        individualVrgda vrgdaFour;
-        individualVrgda vrgdaFive;
-        bool batchInitialized;
-    }
-    vrgdaBatchData public vrgdaBatch;
+    // Tracks whether batch initialization has happened
+    // Prevents resetting everything accidentally by only allowing batch initialization once
+    bool batchInitialized;
 
     // Stores token sold counts for VRGDA math
-    // Underscored variables are initialization-resistant totals for other purposes
     struct counts {
-        uint256 _one;
-        uint256 one;
-        uint256 _two;
-        uint256 two;
-        uint256 _three;
-        uint256 three;
-        uint256 _four;
-        uint256 four;
-        uint256 _five;
-        uint256 five;
-        uint256 _extra;
+        uint256 current;
+        uint256 total;
     }
-    counts public vrgdaCounts;
+    // Mapping tracks counts for each name length via uint256 length
+    mapping(uint256 => counts) public tokenCounts;
 
     /*//////////////////////////////////////////////////////////////
                           VRGDA MANAGEMENT
@@ -91,70 +70,33 @@ contract LinearVRGDA {
 
     // Initializes an individual VRGDA (can also reinitialize)
     function _initialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) internal {
-        if (_VRGDA == 1) {
-            VRGDAData.one.targetPrice = _targetPrice;
-            VRGDAData.one.priceDecayPercent = _priceDecayPercent;
-            VRGDAData.one.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            VRGDAData.one.perTimeUnit = _perTimeUnit;
-            VRGDAData.one.startTime = int256(block.timestamp);
-            vrgdaCounts.one = 0;
-        } else if (_VRGDA == 2) {
-            VRGDAData.two.targetPrice = _targetPrice;
-            VRGDAData.two.priceDecayPercent = _priceDecayPercent;
-            VRGDAData.two.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            VRGDAData.two.perTimeUnit = _perTimeUnit;
-            VRGDAData.two.startTime = int256(block.timestamp);
-            vrgdaCounts.two = 0;
-        } else if (_VRGDA == 3) {
-            VRGDAData.three.targetPrice = _targetPrice;
-            VRGDAData.three.priceDecayPercent = _priceDecayPercent;
-            VRGDAData.three.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            VRGDAData.three.perTimeUnit = _perTimeUnit;
-            VRGDAData.three.startTime = int256(block.timestamp);
-            vrgdaCounts.three = 0;
-        } else if (_VRGDA == 4) {
-            VRGDAData.four.targetPrice = _targetPrice;
-            VRGDAData.four.priceDecayPercent = _priceDecayPercent;
-            VRGDAData.four.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            VRGDAData.four.perTimeUnit = _perTimeUnit;
-            VRGDAData.four.startTime = int256(block.timestamp);
-            vrgdaCounts.four = 0;
-        } else if (_VRGDA == 5) {
-            VRGDAData.five.targetPrice = _targetPrice;
-            VRGDAData.five.priceDecayPercent = _priceDecayPercent;
-            VRGDAData.five.decayConstant = wadLn(1e18 - _priceDecayPercent);
-            VRGDAData.five.perTimeUnit = _perTimeUnit;
-            VRGDAData.five.startTime = int256(block.timestamp);
-            vrgdaCounts.five = 0;
+        if (_VRGDA > 0 && _VRGDA < 6) {
+            vrgdaData[_VRGDA].targetPrice = _targetPrice;
+            vrgdaData[_VRGDA].priceDecayPercent = _priceDecayPercent;
+            vrgdaData[_VRGDA].decayConstant = wadLn(1e18 - _priceDecayPercent);
+            vrgdaData[_VRGDA].perTimeUnit = _perTimeUnit;
+            vrgdaData[_VRGDA].startTime = int256(block.timestamp);
+            tokenCounts[_VRGDA].current = 0;
         } else {
-            revert("Zero or >five characters not applicable to VRGDA emissions");
+            revert("INVALID_VRGDA");
         }
     }
 
     // Initializes all of the VRGDAs at once
     function _batchInitialize() internal {
-        //require(vrgdaBatch.batchInitialized == false, "VRGDA batch already initialized");
-        _initialize(1,
-            vrgdaBatch.vrgdaOne.individualTargetPrice,
-            vrgdaBatch.vrgdaOne.individualPriceDecayPercent,
-            vrgdaBatch.vrgdaOne.individualPerTimeUnit);
-        _initialize(2,
-            vrgdaBatch.vrgdaTwo.individualTargetPrice,
-            vrgdaBatch.vrgdaTwo.individualPriceDecayPercent,
-            vrgdaBatch.vrgdaTwo.individualPerTimeUnit);
-        _initialize(1,
-            vrgdaBatch.vrgdaThree.individualTargetPrice,
-            vrgdaBatch.vrgdaThree.individualPriceDecayPercent,
-            vrgdaBatch.vrgdaThree.individualPerTimeUnit);
-        _initialize(1,
-            vrgdaBatch.vrgdaFour.individualTargetPrice,
-            vrgdaBatch.vrgdaFour.individualPriceDecayPercent,
-            vrgdaBatch.vrgdaFour.individualPerTimeUnit);
-        _initialize(1,
-            vrgdaBatch.vrgdaFive.individualTargetPrice,
-            vrgdaBatch.vrgdaFive.individualPriceDecayPercent,
-            vrgdaBatch.vrgdaFive.individualPerTimeUnit);
-        //vrgdaBatch.batchInitialized = true;
+        // Require batch initialization hasn't happened
+        require(batchInitialized != true, "BATCH_INITIALIZED");
+
+        // Initialize all five VRGDAs
+        for (uint i = 1; i < 6; i++) {
+            _initialize(i,
+                initData[i].targetPrice,
+                initData[i].priceDecayPercent,
+                initData[i].perTimeUnit);
+        }
+
+        // Set batchInitialized to prevent further calls
+        batchInitialized = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -171,33 +113,13 @@ contract LinearVRGDA {
         int256 timeSinceStart;
         int256 perTimeUnit;
 
-        if (_vrgda == 1) {
-            targetPrice = VRGDAData.one.targetPrice;
-            decayConstant = VRGDAData.one.decayConstant;
-            timeSinceStart = int256(block.timestamp) - VRGDAData.one.startTime;
-            perTimeUnit = VRGDAData.one.perTimeUnit;
-        } else if (_vrgda == 2) {
-            targetPrice = VRGDAData.two.targetPrice;
-            decayConstant = VRGDAData.two.decayConstant;
-            timeSinceStart = int256(block.timestamp) - VRGDAData.two.startTime;
-            perTimeUnit = VRGDAData.two.perTimeUnit;
-        } else if (_vrgda == 3) {
-            targetPrice = VRGDAData.three.targetPrice;
-            decayConstant = VRGDAData.three.decayConstant;
-            timeSinceStart = int256(block.timestamp) - VRGDAData.three.startTime;
-            perTimeUnit = VRGDAData.three.perTimeUnit;
-        } else if (_vrgda == 4) {
-            targetPrice = VRGDAData.four.targetPrice;
-            decayConstant = VRGDAData.four.decayConstant;
-            timeSinceStart = int256(block.timestamp) - VRGDAData.four.startTime;
-            perTimeUnit = VRGDAData.four.perTimeUnit;
-        } else if (_vrgda == 5) {
-            targetPrice = VRGDAData.five.targetPrice;
-            decayConstant = VRGDAData.five.decayConstant;
-            timeSinceStart = int256(block.timestamp) - VRGDAData.five.startTime;
-            perTimeUnit = VRGDAData.five.perTimeUnit;
+        if (_vrgda > 0 && _vrgda < 6) {
+            targetPrice = vrgdaData[_vrgda].targetPrice;
+            decayConstant = vrgdaData[_vrgda].decayConstant;
+            timeSinceStart = int256(block.timestamp) - vrgdaData[_vrgda].startTime;
+            perTimeUnit = vrgdaData[_vrgda].perTimeUnit;
         } else {
-            revert("Zero or >five characters not applicable to VRGDA emissions");
+            revert("INVALID_VRGDA");
         }
         unchecked {
             return uint256(
