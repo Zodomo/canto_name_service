@@ -202,7 +202,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     // Internal renewal logic
     function _renew(uint256 _tokenId, uint256 _term) internal {
         // Name must not be expired to be renewed
-        require(nameRegistry[_tokenId].expiry > block.timestamp, "NAME_EXPIRED");
+        require(nameRegistry[_tokenId].expiry >= block.timestamp, "NAME_EXPIRED");
 
         // Calculate new expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
@@ -271,12 +271,14 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
 
     // Internal delegation logic
     // _expiry requires exact timestamp
-    function _delegate(uint256 _tokenId, address _delegate, uint256 _expiry) internal {
+    function _delegate(uint256 _tokenId, address delegate_, uint256 _expiry) internal {
         // Require delegation term not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _expiry, "OWNERSHIP_EXPIRY");
+        // Require not already delegated
+        require(nameRegistry[_tokenId].delegationExpiry < block.timestamp, "DELEGATION_ACTIVE");
 
         // Set delegate address 
-        nameRegistry[_tokenId].delegate = _delegate;
+        nameRegistry[_tokenId].delegate = delegate_;
         // Save delegation expiry timestamp
         nameRegistry[_tokenId].delegationExpiry = _expiry;
 
@@ -288,14 +290,14 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Pass call with string through to primary logic
-    function delegateName(string memory _name, address _delegate, uint256 _term) public {
+    function delegateName(string memory _name, address delegate_, uint256 _term) public {
         // Generate name ID
         uint256 tokenId = nameToID(_name);
-        delegateName(tokenId, _delegate, _term);
+        delegateName(tokenId, delegate_, _term);
     }
 
     // Allow owner, approved, or operator to delegate a name for a specific term in years
-    function delegateName(uint256 _tokenId, address _delegate, uint256 _term) public {
+    function delegateName(uint256 _tokenId, address delegate_, uint256 _term) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
 
@@ -303,21 +305,65 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 delegationExpiry = block.timestamp + (_term * 365 days);
 
-        _delegate(_tokenId, _delegate, delegationExpiry);
+        _delegate(_tokenId, delegate_, delegationExpiry);
     }
 
     // Pass call with string through to primary logic
-    function delegateNameWithPrecision(string memory _name, address _delegate, uint256 _expiry) public {
+    function delegateNameWithPrecision(string memory _name, address delegate_, uint256 _expiry) public {
         uint256 tokenId = nameToID(_name);
-        delegateNameWithPrecision(tokenId, _delegate, _expiry);
+        delegateNameWithPrecision(tokenId, delegate_, _expiry);
     }
 
     // Process delegation with precise expiry timestamp if yearly term is too imprecise
-    function delegateNameWithPrecision(uint256 _tokenId, address _delegate, uint256 _expiry) public {
+    function delegateNameWithPrecision(uint256 _tokenId, address delegate_, uint256 _expiry) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
 
-        _delegate(_tokenId, _delegate, delegationExpiry);
+        _delegate(_tokenId, delegate_, _expiry);
+    }
+
+    // Internal delegation logic
+    function _extend(uint256 _tokenId, uint256 _newExpiry) internal {
+        // Require new delegation expiry not meet or exceed owner's expiry
+        require(nameRegistry[_tokenId].expiry > _newExpiry, "OWNERSHIP_EXPIRY");
+        // Require existing delegation to extend
+        require(nameRegistry[_tokenId].delegationExpiry >= block.timestamp, "DELEGATION_INACTIVE");
+
+        nameRegistry[_tokenId].delegationExpiry = _newExpiry;
+    }
+
+    // Pass call with string through to primary logic
+    function extendDelegation(string memory _name, uint256 _term) public {
+        uint256 tokenId = nameToID(_name);
+        extendDelegation(tokenId, _term);
+    }
+
+    // Extend name delegation
+    function extendDelegation(uint256 _tokenId, uint256 _term) public {
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+
+        // Calculate expiry timestamp
+        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+        uint256 newDelegationExpiry = 
+            block.timestamp + 
+            (nameRegistry[_tokenId].delegationExpiry - block.timestamp) + 
+            (_term * 365 days);
+
+        _extend(_tokenId, newDelegationExpiry);
+    }
+
+    // Pass call with string through to primary logic
+    function extendDelegationWithPrecision(string memory _name, uint256 _newExpiry) public {
+        uint256 tokenId = nameToID(_name);
+        extendDelegationWithPrecision(tokenId, _newExpiry);
+    }
+
+    function extendDelegationWithPrecision(uint256 _tokenId, uint256 _newExpiry) public {
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+
+        _extend(_tokenId, _newExpiry);
     }
 
     /*//////////////////////////////////////////////////////////////
