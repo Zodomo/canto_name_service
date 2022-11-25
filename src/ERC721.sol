@@ -417,13 +417,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     function _burn(uint256 tokenId) internal virtual {
         address owner = ERC721.ownerOf(tokenId);
 
+        // Prevent invalid burn call by zero address or for nonexistent name
+        require(owner != address(0x0), "NOT_MINTED");
+
         _beforeTokenTransfer(owner, address(0), tokenId, 1);
 
         // Update ownership in case tokenId was transferred by `_beforeTokenTransfer` hook
         owner = ERC721.ownerOf(tokenId);
-
-        // Clear approvals
-        delete _tokenApprovals[tokenId];
 
         unchecked {
             // Cannot overflow, as that would require more tokens to be burned/transferred
@@ -467,9 +467,6 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
         // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
         require(ERC721.ownerOf(tokenId) == from, "INCORRECT_OWNER");
-
-        // Clear approvals from the previous owner
-        delete _tokenApprovals[tokenId];
 
         unchecked {
             // `_balances[from]` cannot overflow for the same reason as described in `_burn`:

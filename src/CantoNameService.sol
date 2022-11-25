@@ -182,6 +182,19 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 PUBLIC BURN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    // burnName function call using name
+    function burnName(string memory _name) public {
+        // Generate tokenId from name string
+        uint256 tokenId = nameToID(_name);
+        burnName(tokenId);
+    }
+
+    // Only owner can burn if name is undelegated
+    function burnName(uint256 tokenId) public {
+        require(msg.sender == ERC721.ownerOf(tokenId), "NOT_OWNER");
+        _burn(tokenId);
+    }
+
     /*//////////////////////////////////////////////////////////////
                 PRIMARY NAME LOGIC
     //////////////////////////////////////////////////////////////*/
