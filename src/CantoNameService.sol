@@ -349,9 +349,10 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         burnName(tokenId);
     }
 
-    // Only owner can burn if name is undelegated
+    // Name is only burnable if undelegated
     function burnName(uint256 _tokenId) public {
-        require(msg.sender == ERC721.ownerOf(_tokenId), "CantoNameService::burnName::NOT_OWNER");
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::burnName::NOT_APPROVED");
         _burn(_tokenId);
 
         emit Burn(msg.sender, _tokenId);
