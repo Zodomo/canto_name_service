@@ -1,59 +1,70 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import {DSTestPlus} from "./utils/DSTestPlus.sol";
+import {DSTestPlus} from "solmate/test/utils/DSTestPlus.sol";
+import {ERC721TokenReceiver} from "solmate/tokens/ERC721.sol";
 
 // import {DSInvariantTest} from "./utils/DSInvariantTest.sol";
 
 // import {MockERC721} from "./utils/mocks/MockERC721.sol";
 
-// import {ERC721} from "../src/ERC721.sol";
+import "../src/Allowlist.sol";
+import "../src/CantoNameService.sol";
 
-import {Allowlist} from "../src/Allowlist.sol";
-import {CantoNameService} from "../src/CantoNameService.sol";
-
-import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
-
-contract ERC721Recipient is IERC721Receiver {
+contract ERC721Recipient is ERC721TokenReceiver {
     address public operator;
     address public from;
     uint256 public id;
     bytes public data;
 
-    function onERC721Received(address _operator, address _from, uint256 _id, bytes calldata _data)
-        public
-        virtual
-        override
-        returns (bytes4)
-    {
+    function onERC721Received(
+        address _operator,
+        address _from,
+        uint256 _id,
+        bytes calldata _data
+    ) public virtual override returns (bytes4) {
         operator = _operator;
         from = _from;
         id = _id;
         data = _data;
 
-        return IERC721Receiver.onERC721Received.selector;
+        return ERC721TokenReceiver.onERC721Received.selector;
     }
 }
 
-contract RevertingERC721Recipient is IERC721Receiver {
-    function onERC721Received(address, address, uint256, bytes calldata) public virtual override returns (bytes4) {
-        revert(string(abi.encodePacked(IERC721Receiver.onERC721Received.selector)));
+contract RevertingERC721Recipient is ERC721TokenReceiver {
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes calldata
+    ) public virtual override returns (bytes4) {
+        revert(string(abi.encodePacked(ERC721TokenReceiver.onERC721Received.selector)));
     }
 }
 
-contract WrongReturnDataERC721Recipient is IERC721Receiver {
-    function onERC721Received(address, address, uint256, bytes calldata) public virtual override returns (bytes4) {
+contract WrongReturnDataERC721Recipient is ERC721TokenReceiver {
+    function onERC721Received(
+        address,
+        address,
+        uint256, 
+        bytes calldata
+    ) public virtual override returns (bytes4) {
         return 0xCAFEBEEF;
     }
 }
 
-contract CNSTest is DSTestPlus, IERC721Receiver {
+contract NonERC721Recipient {}
+
+contract CNSTest is DSTestPlus {
+    Allowlist list;
     CantoNameService token;
 
     // Allowlist needs to be deployed and its address passed to CantoNameService constructor
     function setUp() public {
-        token = new CantoNameService();
-        token.testingInitialize();
+        list = new Allowlist(30);
+        token = new CantoNameService(address(list));
+        token.vrgdaTest();
     }
 
     function invariantMetadata() public {
@@ -61,49 +72,49 @@ contract CNSTest is DSTestPlus, IERC721Receiver {
         assertEq(token.symbol(), "CNS");
     }
 
-    function testStringLengthOne() public {
+    function testAlphanumericStringLengthOne() public {
         string memory _string = "a";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 1);
     }
 
-    function testStringLengthTwo() public {
+    function testAlphanumericStringLengthTwo() public {
         string memory _string = "ab";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 2);
     }
 
-    function testStringLengthThree() public {
+    function testAlphanumericStringLengthThree() public {
         string memory _string = "abc";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 3);
     }
 
-    function testStringLengthFour() public {
+    function testAlphanumericStringLengthFour() public {
         string memory _string = "abcd";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 4);
     }
 
-    function testStringLengthFive() public {
+    function testAlphanumericStringLengthFive() public {
         string memory _string = "abcde";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 5);
     }
 
-    function testStringLengthSix() public {
+    function testAlphanumericStringLengthSix() public {
         string memory _string = "abcdef";
 
         uint256 length = token.stringLength(_string);
         assertEq(length, 6);
     }
 
-    function testStringLengthZero() public {
+    function testAlphanumericStringLengthZero() public {
         string memory _string = "";
 
         uint256 length = token.stringLength(_string);
@@ -114,9 +125,10 @@ contract CNSTest is DSTestPlus, IERC721Receiver {
     // Currently fails due to onERC721Received call
     // Unsure if it is due to the contract referencing it in _register() or here in the test
     function testSafeRegister() public {
-        string memory _name = "a";
-        uint256 _term = 1;
+        address recipient = address(1);
+        string memory name = "a";
+        uint256 term = 1;
 
-        token.safeRegister{ value: 2 ether }(_name, _term);
+        token.safeRegister{ value: 2 ether }(recipient, name, term);
     }
 }
