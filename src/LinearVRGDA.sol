@@ -85,14 +85,14 @@ contract LinearVRGDA {
             
             emit Initialized(_VRGDA, block.timestamp);
         } else {
-            revert("INVALID_VRGDA");
+            revert("LinearVRGDA::_initialize::INVALID_VRGDA");
         }
     }
 
     // Initializes all of the VRGDAs at once
     function _batchInitialize() internal {
         // Require batch initialization hasn't happened
-        require(batchInitialized != true, "BATCH_INITIALIZED");
+        require(batchInitialized != true, "LinearVRGDA::_batchInitialize::BATCH_INITIALIZED");
 
         // Initialize all five VRGDAs
         for (uint i = 1; i < 6; i++) {
@@ -126,7 +126,7 @@ contract LinearVRGDA {
             timeSinceStart = int256(block.timestamp) - vrgdaData[_vrgda].startTime;
             perTimeUnit = vrgdaData[_vrgda].perTimeUnit;
         } else {
-            revert("INVALID_VRGDA");
+            revert("LinearVRGDA::_getVRGDAPrice::INVALID_VRGDA");
         }
         unchecked {
             return uint256(

@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 // Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
 contract Allowlist {
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
+                EVENTS
     //////////////////////////////////////////////////////////////*/
 
     // Log verified users
@@ -13,35 +13,35 @@ contract Allowlist {
     event Reserve(address indexed reserver, uint256 indexed tokenId, uint256 indexed expiry);
 
     /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
+                MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
     // Require CAPTCHA passed
     modifier passCAPTCHA() {
-        require(hasPassedCAPTCHA[msg.sender], "PASS_CAPTCHA");
+        require(hasPassedCAPTCHA[msg.sender], "Allowlist::passCAPTCHA::PASS_CAPTCHA");
         _;
     }
 
     // Require reservation not used, currently restricts to one reservation
     modifier reservationValid() {
-        require(reservationUsed[msg.sender] != true, "RESERVATION_USED");
+        require(reservationUsed[msg.sender] != true, "Allowlist::reservationValid::RESERVATION_USED");
         _;
     }
 
     /*//////////////////////////////////////////////////////////////
-                     VERIFICATION/ALLOWLIST STORAGE
+                VERIFICATION/ALLOWLIST STORAGE
     //////////////////////////////////////////////////////////////*/
 
     // User CAPTCHA verification
     mapping(address => bool) internal hasPassedCAPTCHA;
     // Tracks whether user has used their one reservation
     mapping(address => bool) internal reservationUsed;
-    // Stores reservation expiry timestamp, currently 365 days after reservation
-    mapping(address => uint256) internal reservationExpiry;
 
     // Name reservation mappings to assist with lookups
     mapping(address => uint256) public nameReservation;
     mapping(uint256 => address) public nameReserver;
+    // Stores reservation expiry timestamp, currently 365 days after reservation
+    mapping(address => uint256) internal reservationExpiry;
 
     // Cutoff timestamp
     uint256 cutoff;
@@ -54,9 +54,20 @@ contract Allowlist {
     function getReserver(uint256 _tokenId) public view returns (address) {
         return nameReserver[_tokenId];
     }
+    // Return reservation expiry timestamp
+    function getReservationExpiry(address _reserver) public view returns (uint256) {
+        return reservationExpiry[_reserver];
+    }
+    // Delete the above data
+    function deleteReservation(uint256 _tokenId) public {
+        require(nameReserver[_tokenId] == msg.sender, "Allowlist::deleteReservation::NOT_RESERVER");
+        delete nameReserver[_tokenId];
+        delete nameReservation[msg.sender];
+        delete reservationExpiry[msg.sender];
+    }
 
     /*//////////////////////////////////////////////////////////////
-                             EIP-712 STORAGE
+                EIP-712 STORAGE
     //////////////////////////////////////////////////////////////*/
 
     uint256 internal immutable INITIAL_CHAIN_ID;
@@ -64,7 +75,7 @@ contract Allowlist {
     bytes32 internal immutable INITIAL_DOMAIN_SEPARATOR;
 
     /*//////////////////////////////////////////////////////////////
-                              EIP-712 LOGIC
+                EIP-712 LOGIC
     //////////////////////////////////////////////////////////////*/
 
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
@@ -84,7 +95,7 @@ contract Allowlist {
     }
 
     /*//////////////////////////////////////////////////////////////
-                               CONSTRUCTOR
+                CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
     constructor(uint256 _cutoff) {
@@ -94,13 +105,13 @@ contract Allowlist {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           VERIFICATION LOGIC
+                VERIFICATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Borrowed from https://solidity-by-example.org/signature/
     function splitSignature(bytes memory _sig) public pure returns (bytes32 r, bytes32 s, uint8 v) {
         // Check signature length
-        require(_sig.length == 65, "SIGNATURE_LENGTH");
+        require(_sig.length == 65, "Allowlist::splitSignature::SIGNATURE_LENGTH");
 
         assembly {
             /*
@@ -134,7 +145,7 @@ contract Allowlist {
             _s
         );
 
-        require(recoveredAddress == msg.sender, "INVALID_SIGNER");
+        require(recoveredAddress == msg.sender, "Allowlist::_verify::INVALID_SIGNER");
 
         hasPassedCAPTCHA[msg.sender] = true;
 
@@ -149,15 +160,17 @@ contract Allowlist {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           ALLOWLIST LOGIC
+                ALLOWLIST LOGIC
     //////////////////////////////////////////////////////////////*/
 
     // Reserve name after passing CAPTCHA and ensuring reservation hasn't been used
     function reserveName(uint256 _tokenId) public passCAPTCHA reservationValid {
+        // Require cutoff hasn't been reached
+        require(cutoff >= block.timestamp, "Allowlist::reserveName::RESERVATIONS_CLOSED");
         // Confirm name hasn't been reserved
-        require(nameReserver[_tokenId] == address(0), "NAME_RESERVED");
+        require(nameReserver[_tokenId] == address(0), "Allowlist::reserveName::NAME_RESERVED");
         // Block redundant reservations
-        require(nameReserver[_tokenId] != msg.sender, "ALREADY_RESERVED");
+        require(nameReserver[_tokenId] != msg.sender, "Allowlist::reserveName::RESERVATION_PROCESSED");
 
         // If another name has been reserved, clear the old name's reserver before processing new name
         if (nameReservation[msg.sender] != 0) {

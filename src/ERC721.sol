@@ -56,6 +56,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address delegate;
         uint256 delegationExpiry;
     }
+    // Base URI
+    string internal baseURI;
 
     // Name data storage / registry
     mapping(uint256 => Name) public nameRegistry;
@@ -108,8 +110,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
 
-        string memory baseURI = _baseURI();
-        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+        string memory baseURI_ = _baseURI();
+        return bytes(baseURI_).length > 0 ? string(abi.encodePacked(baseURI_, tokenId.toString())) : "";
     }
 
     /**
@@ -117,8 +119,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      * token will be the concatenation of the `baseURI` and the `tokenId`. Empty
      * by default, can be overridden in child contracts.
      */
-    function _baseURI() internal view virtual returns (string memory) {
-        return "";
+    function _baseURI() internal view returns (string memory) {
+        return baseURI;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -126,20 +128,20 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
     //////////////////////////////////////////////////////////////*/
 
     // Returns name owner even if zero address
-    function _ownerOf(uint256 tokenId) internal view virtual returns (address) {
+    function _ownerOf(uint256 tokenId) internal view returns (address) {
         return _owners[tokenId];
     }
 
     // Checks if token exists (only does if minted, no longer after burn)
-    function _exists(uint256 tokenId) internal view virtual returns (bool) {
+    function _exists(uint256 tokenId) internal view returns (bool) {
         return _ownerOf(tokenId) != address(0);
     }
 
     /**
      * @dev Reverts if the `tokenId` has not been minted yet.
      */
-    function _requireMinted(uint256 tokenId) internal view virtual {
-        require(_exists(tokenId), "NOT_MINTED");
+    function _requireMinted(uint256 tokenId) internal view {
+        require(_exists(tokenId), "ERC721::_requireMinted::NOT_MINTED");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -151,7 +153,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * Emits an {Approval} event.
      */
-    function _approve(address to, uint256 tokenId) internal virtual {
+    function _approve(address to, uint256 tokenId) internal {
         _tokenApprovals[tokenId] = to;
         emit Approval(ERC721.ownerOf(tokenId), to, tokenId);
     }
@@ -165,14 +167,14 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address owner,
         address operator,
         bool approved
-    ) internal virtual {
-        require(owner != operator, "NOT_OPERATOR");
+    ) internal {
+        require(owner != operator, "ERC721::_setApprovalForAll::NOT_OPERATOR");
         _operatorApprovals[owner][operator] = approved;
         emit ApprovalForAll(owner, operator, approved);
     }
 
     // Checks if sender is approved via all means to manage the token
-    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
         address owner = ERC721.ownerOf(tokenId);
         return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
     }
@@ -183,25 +185,25 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
     // Displays owner's balance of tokens
     function balanceOf(address owner) public view virtual override returns (uint256) {
-        require(owner != address(0), "ZERO_ADDRESS");
+        require(owner != address(0), "ERC721::balanceOf::ZERO_ADDRESS");
         return _balances[owner];
     }
 
     // Displays owner of any token
     function ownerOf(uint256 tokenId) public view virtual override returns (address) {
         address owner = _ownerOf(tokenId);
-        require(owner != address(0), "NOT_MINTED");
+        require(owner != address(0), "ERC721::ownerOf::NOT_MINTED");
         return owner;
     }
 
     // Sets single address approval for a specific token
     function approve(address to, uint256 tokenId) public virtual override {
         address owner = ERC721.ownerOf(tokenId);
-        require(to != owner, "SELF_APPROVE");
+        require(to != owner, "ERC721::approve::SELF_APPROVE");
 
         require(
             _msgSender() == owner || isApprovedForAll(owner, _msgSender()),
-            "NOT_APPROVED"
+            "ERC721::approve::NOT_APPROVED"
         );
 
         _approve(to, tokenId);
@@ -240,7 +242,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         uint256 tokenId,
         bytes memory data
     ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721::safeTransferFrom::NOT_APPROVED");
         _safeTransfer(from, to, tokenId, data);
     }
 
@@ -250,7 +252,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) public virtual override {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721::safeTransferFrom::NOT_APPROVED");
 
         _transfer(from, to, tokenId);
     }
@@ -280,7 +282,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
                 return retval == IERC721Receiver.onERC721Received.selector;
             } catch (bytes memory reason) {
                 if (reason.length == 0) {
-                    revert("INVALID_RECIPIENT");
+                    revert("ERC721::_checkOnERC721Received::INVALID_RECIPIENT");
                 } else {
                     /// @solidity memory-safe-assembly
                     assembly {
@@ -316,13 +318,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId,
         bytes memory data
-    ) internal virtual {
+    ) internal {
         _transfer(from, to, tokenId);
-        require(_checkOnERC721Received(from, to, tokenId, data), "UNSAFE_TRANSFER");
+        require(_checkOnERC721Received(from, to, tokenId, data), "ERC721::_safeTransfer::UNSAFE_TRANSFER");
     }
 
     // Process requests without msg.data through one function
-    function _safeMint(address to, uint256 tokenId) internal virtual {
+    function _safeMint(address to, uint256 tokenId) internal {
         _safeMint(to, tokenId, "");
     }
 
@@ -340,11 +342,11 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address to,
         uint256 tokenId,
         bytes memory data
-    ) internal virtual {
+    ) internal {
         _mint(to, tokenId);
         require(
             _checkOnERC721Received(address(0), to, tokenId, data),
-            "UNSAFE_TRANSFER"
+            "ERC721::_safeMint::UNSAFE_TRANSFER"
         );
     }
 
@@ -364,16 +366,16 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * Emits a {Transfer} event.
      */
-    function _mint(address to, uint256 tokenId) internal virtual {
+    function _mint(address to, uint256 tokenId) internal {
         // Require token not have valid, non-expired ownership
         // Can't check for generic ownership as tokens expire but don't wipe data when they do
-        require(nameRegistry[tokenId].expiry < block.timestamp, "NOT_AVAILABLE");
+        require(nameRegistry[tokenId].expiry < block.timestamp, "ERC721::_mint::NOT_AVAILABLE");
         // Prevent mints to zero address
-        require(to != address(0x0), "ZERO_ADDRESS");
+        require(to != address(0x0), "ERC721::_mint::ZERO_ADDRESS");
 
         address from = _ownerOf(tokenId);
 
-        _beforeTokenTransfer(from, to, tokenId, 1);
+        _beforeTokenTransfer(tokenId);
 
         unchecked {
             // Will not overflow unless all 2**256 token ids are minted to the same owner.
@@ -394,11 +396,11 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
         emit Transfer(from, to, tokenId);
 
-        _afterTokenTransfer(from, to, tokenId, 1);
+        _afterTokenTransfer(tokenId);
     }
 
     // Burn data that normally wouldn't get wiped in transfers
-    function _burnData(uint256 tokenId) internal virtual {
+    function _burnData(uint256 tokenId) internal {
         nameRegistry[tokenId].name = "";
         nameRegistry[tokenId].expiry = 0;
     }
@@ -414,13 +416,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * Emits a {Transfer} event.
      */
-    function _burn(uint256 tokenId) internal virtual {
+    function _burn(uint256 tokenId) internal {
         address owner = ERC721.ownerOf(tokenId);
 
         // Prevent invalid burn call by zero address or for nonexistent name
-        require(owner != address(0x0), "NOT_MINTED");
+        require(owner != address(0x0), "ERC721::_burn::NOT_MINTED");
 
-        _beforeTokenTransfer(owner, address(0), tokenId, 1);
+        _beforeTokenTransfer(tokenId);
 
         // Update ownership in case tokenId was transferred by `_beforeTokenTransfer` hook
         owner = ERC721.ownerOf(tokenId);
@@ -437,7 +439,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         // Burn data that normally wouldn't get wiped in transfers
         _burnData(tokenId);
         
-        _afterTokenTransfer(owner, address(0), tokenId, 1);
+        _afterTokenTransfer(tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -459,14 +461,14 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
         address from,
         address to,
         uint256 tokenId
-    ) internal virtual {
-        require(ERC721.ownerOf(tokenId) == from, "INCORRECT_OWNER");
-        require(to != address(0), "ZERO_ADDRESS");
+    ) internal {
+        require(ERC721.ownerOf(tokenId) == from, "ERC721::_transfer::INCORRECT_OWNER");
+        require(to != address(0), "ERC721::_transfer::ZERO_ADDRESS");
 
-        _beforeTokenTransfer(from, to, tokenId, 1);
+        _beforeTokenTransfer(tokenId);
 
         // Check that tokenId was not transferred by `_beforeTokenTransfer` hook
-        require(ERC721.ownerOf(tokenId) == from, "INCORRECT_OWNER");
+        require(ERC721.ownerOf(tokenId) == from, "ERC721::_transfer::INCORRECT_OWNER");
 
         unchecked {
             // `_balances[from]` cannot overflow for the same reason as described in `_burn`:
@@ -481,7 +483,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
         emit Transfer(from, to, tokenId);
 
-        _afterTokenTransfer(from, to, tokenId, 1);
+        _afterTokenTransfer(tokenId);
     }
 
     /**
@@ -500,13 +502,8 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * - Token must not be actively delegated
      */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal virtual {
-        require(nameRegistry[tokenId].delegationExpiry < block.timestamp, "TOKEN_DELEGATED");
+    function _beforeTokenTransfer(uint256 tokenId) internal view {
+        require(nameRegistry[tokenId].delegationExpiry < block.timestamp, "ERC721::_beforeTokenTransfer::TOKEN_DELEGATED");
     }
 
     /**
@@ -524,12 +521,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
      *
      * - Wipe token approval, delegate, delegation expiry, and primary name assignment
      */
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId,
-        uint256 batchSize
-    ) internal virtual {
+    function _afterTokenTransfer(uint256 tokenId) internal {
         delete _tokenApprovals[tokenId];
         nameRegistry[tokenId].delegate = address(0x0); // Clear delegate address
         nameRegistry[tokenId].delegationExpiry = 0; // Clear delegation expiry

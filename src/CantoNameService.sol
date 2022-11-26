@@ -7,7 +7,7 @@ import "./Allowlist.sol";
 import "openzeppelin-contracts/access/Ownable.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 
-contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, Allowlist(600000), Ownable, ReentrancyGuard {
+contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, Ownable, ReentrancyGuard {
 
     /*//////////////////////////////////////////////////////////////
                 EVENTS
@@ -31,10 +31,35 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     event Withdraw(address indexed recipient, uint256 indexed value);
 
     /*//////////////////////////////////////////////////////////////
+                STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    Allowlist allowlist;
+
+    /*//////////////////////////////////////////////////////////////
                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor() { }
+    constructor(address _allowlist) {
+        transferOwnership(msg.sender);
+        setAllowlist(_allowlist);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // Set Allowlist contract address
+    // Can only be called if VRGDA batch initialization has not occurred
+    function setAllowlist(address _allowlist) public onlyOwner {
+        require(batchInitialized != true, "CantoNameService::_setAllowlist::BATCH_INITIALIZED");
+        allowlist = Allowlist(_allowlist);
+    }
+
+    // Change base URI
+    function setBaseURI(string memory _newBaseURI) public onlyOwner {
+        baseURI = _newBaseURI;
+    }
 
     /*//////////////////////////////////////////////////////////////
                 LIBRARY FUNCTIONS
@@ -115,31 +140,28 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
 
     // Initialize / Reset a single VRGDA
     // Can only be performed after batch initialization
-    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
-    function vrgdaInit(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public {
-        require(batchInitialized == true, "INITIALIZE_BATCH");
+    function vrgdaInit(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public onlyOwner {
+        require(batchInitialized == true, "CantoNameService::vrgdaInit::INITIALIZE_BATCH");
         _initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
     }
 
     // Prepare initialization data for each VRGDA
     // Can only be called before batch initialization
-    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
-    function vrgdaPrep(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public {
-        require(batchInitialized == false, "BATCH_INITIALIZED");
+    function vrgdaPrep(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public onlyOwner {
+        require(batchInitialized == false, "CantoNameService::vrgdaPrep::BATCH_INITIALIZED");
         if (_VRGDA > 0 && _VRGDA < 6) {
             initData[_VRGDA].targetPrice = _targetPrice;
             initData[_VRGDA].priceDecayPercent = _priceDecayPercent;
             initData[_VRGDA].perTimeUnit = _perTimeUnit;
         } else {
-            revert("INVALID_VRGDA");
+            revert("CantoNameService::vrgdaPrep::INVALID_VRGDA");
         }
     }
 
     // Initialize all VRGDAs, only callable once
     // Checks to make sure all VRGDAs have data
     // vrgdaInit can only be called after vrgdaBatch
-    // ******************* CURRENTLY CALLABLE BY ANYONE ************************
-    function vrgdaBatch() public {
+    function vrgdaBatch() public onlyOwner {
         // Iteratively check all batch parameters for completeness
         for (uint i = 1; i < 6; i++) {
             if (initData[i].targetPrice == 0) {
@@ -172,7 +194,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
 
     // Check to see if name is reserved
     function isReserved(uint256 _tokenId) public view returns (bool) {
-        if (nameReserver[_tokenId] != address(0x0)) {
+        if (allowlist.getReserver(_tokenId) != address(0x0)) {
             return true;
         } else {
             return false;
@@ -181,8 +203,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
 
     // Check to make sure reservation is valid
     function _validateReservation(uint256 _tokenId) internal view {
-        require(nameReserver[_tokenId] == msg.sender, "NOT_RESERVER");
-        require(nameReservation[msg.sender] == _tokenId, "INVALID_RESERVATION");
+        require(allowlist.getReserver(_tokenId) == msg.sender, "CantoNameService::_validateReservation::NOT_RESERVER");
+        require(allowlist.getReservation(msg.sender) == _tokenId, "CantoNameService::_validateReservation::INVALID_RESERVATION");
+        require(allowlist.getReservationExpiry(msg.sender) >= block.timestamp, "CantoNameService::_validateReservation::RESERVATION_EXPIRED");
     }
 
     // Pass call with string through to primary logic
@@ -197,12 +220,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         _validateReservation(_tokenId);
 
         // Wipe out all reservation information
-        delete nameReserver[_tokenId];
-        delete nameReservation[msg.sender];
-        delete reservationExpiry[msg.sender];
+        allowlist.deleteReservation(_tokenId);
     }
-
-
 
     /*//////////////////////////////////////////////////////////////
                 REGISTER LOGIC
@@ -216,9 +235,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Internal register logic
     function _register(string memory _name, uint256 _tokenId, uint256 _expiry) internal {
         if (isReserved(_tokenId)) {
-            // Require recipient be reserver if name is reserved
-            _validateReservation(_tokenId);
-            // Consume reservation
+            // Consume reservation, validity will be checked during burn
             burnReservation(_tokenId);
         }
 
@@ -241,9 +258,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
-        require(length > 0, "MISSING_NAME");
+        require(length > 0, "CantoNameService::safeRegister::MISSING_NAME");
         // Require price is fully paid
-        require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
+        require(msg.value >= price * _term, "CantoNameService::safeRegister::INSUFFICIENT_PAYMENT");
 
         // Call internal safe mint logic
         _safeMint(_to, tokenId);
@@ -272,9 +289,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
-        require(length > 0, "MISSING_NAME");
+        require(length > 0, "CantoNameService::unsafeRegister::MISSING_NAME");
         // Require price is fully paid
-        require(msg.value >= price * _term, "INSUFFICIENT_PAYMENT");
+        require(msg.value >= price * _term, "CantoNameService::unsafeRegister::INSUFFICIENT_PAYMENT");
         
         // Call internal mint logic
         _mint(_to, tokenId);
@@ -304,7 +321,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
 
     // Only owner can burn if name is undelegated
     function burnName(uint256 _tokenId) public {
-        require(msg.sender == ERC721.ownerOf(_tokenId), "NOT_OWNER");
+        require(msg.sender == ERC721.ownerOf(_tokenId), "CantoNameService::burnName::NOT_OWNER");
         _burn(_tokenId);
 
         emit Burn(msg.sender, _tokenId);
@@ -317,7 +334,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Internal renewal logic
     function _renew(uint256 _tokenId, uint256 _newExpiry) internal {
         // Name must not be expired to be renewed
-        require(nameRegistry[_tokenId].expiry >= block.timestamp, "NAME_EXPIRED");
+        require(nameRegistry[_tokenId].expiry >= block.timestamp, "CantoNameService::_renew::NAME_EXPIRED");
 
         // Update expiry
         nameRegistry[_tokenId].expiry == _newExpiry;
@@ -347,7 +364,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         uint256 newExpiry = nameRegistry[_tokenId].expiry + (_term * 365 days);
 
         // Require msg.value meets or exceeds renewal cost
-        require(msg.value >= (price * _term), "INSUFFICIENT_PAYMENT");
+        require(msg.value >= (price * _term), "CantoNameService::renewName::INSUFFICIENT_PAYMENT");
 
         // Execute internal renewal logic
         _renew(_tokenId, newExpiry);
@@ -375,7 +392,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
         require((msg.sender == ERC721.ownerOf(_tokenId) &&
                 nameRegistry[_tokenId].delegationExpiry < block.timestamp) || 
             (msg.sender == nameRegistry[_tokenId].delegate && 
-                nameRegistry[_tokenId].delegationExpiry > block.timestamp));
+                nameRegistry[_tokenId].delegationExpiry > block.timestamp),
+            "CantoNameService::setPrimary::NOT_APPROVED");
 
         // Set primary name data
         primaryName[msg.sender] = _tokenId;
@@ -398,9 +416,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // _expiry requires exact timestamp
     function _delegate(uint256 _tokenId, address delegate_, uint256 _expiry) internal {
         // Require delegation term not meet or exceed owner's expiry
-        require(nameRegistry[_tokenId].expiry > _expiry, "OWNERSHIP_EXPIRY");
+        require(nameRegistry[_tokenId].expiry > _expiry, "CantoNameService::_delegate::OWNERSHIP_EXPIRY");
         // Require not already delegated
-        require(nameRegistry[_tokenId].delegationExpiry < block.timestamp, "DELEGATION_ACTIVE");
+        require(nameRegistry[_tokenId].delegationExpiry < block.timestamp, "CantoNameService::_delegate::DELEGATION_ACTIVE");
 
         // Set delegate address 
         nameRegistry[_tokenId].delegate = delegate_;
@@ -426,7 +444,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Allow owner, approved, or operator to delegate a name for a specific term in years
     function delegateName(uint256 _tokenId, address delegate_, uint256 _term) public {
         // Require owner/approved/operator
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateName::NOT_APPROVED");
 
         // Calculate expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
@@ -444,7 +462,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Process delegation with precise expiry timestamp if yearly term is too imprecise
     function delegateNameWithPrecision(uint256 _tokenId, address delegate_, uint256 _expiry) public {
         // Require owner/approved/operator
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateNameWithPrecision::NOT_APPROVED");
 
         _delegate(_tokenId, delegate_, _expiry);
     }
@@ -452,9 +470,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Internal delegation logic
     function _extend(uint256 _tokenId, uint256 _newExpiry) internal {
         // Require new delegation expiry not meet or exceed owner's expiry
-        require(nameRegistry[_tokenId].expiry > _newExpiry, "OWNERSHIP_EXPIRY");
+        require(nameRegistry[_tokenId].expiry > _newExpiry, "CantoNameService::_extend::OWNERSHIP_EXPIRY");
         // Require existing delegation to extend
-        require(nameRegistry[_tokenId].delegationExpiry >= block.timestamp, "DELEGATION_INACTIVE");
+        require(nameRegistry[_tokenId].delegationExpiry >= block.timestamp, "CantoNameService::_extend::DELEGATION_INACTIVE");
 
         nameRegistry[_tokenId].delegationExpiry = _newExpiry;
 
@@ -470,7 +488,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     // Extend name delegation
     function extendDelegation(uint256 _tokenId, uint256 _term) public {
         // Require owner/approved/operator
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
 
         // Calculate expiry timestamp
         // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
@@ -490,7 +508,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
 
     function extendDelegationWithPrecision(uint256 _tokenId, uint256 _newExpiry) public {
         // Require owner/approved/operator
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "NOT_APPROVED");
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegationWithPrecision::NOT_APPROVED");
 
         _extend(_tokenId, _newExpiry);
     }
@@ -500,10 +518,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, A
     //////////////////////////////////////////////////////////////*/
 
     // Payment handling functions if we need them
-    // ***************** Currently allows withdrawal to anyone ***********************
-    function withdraw() public {
+    function withdraw() public onlyOwner {
         (bool success,) = msg.sender.call{value: address(this).balance}("");
-        require(success);
+        require(success, "CantoNameService::withdraw::WITHDRAW_FAILED");
 
         emit Withdraw(msg.sender, address(this).balance);
     }
