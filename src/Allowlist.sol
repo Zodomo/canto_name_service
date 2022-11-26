@@ -3,6 +3,7 @@ pragma solidity ^0.8.17;
 
 // Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
 contract Allowlist {
+    
     /*//////////////////////////////////////////////////////////////
                 EVENTS
     //////////////////////////////////////////////////////////////*/

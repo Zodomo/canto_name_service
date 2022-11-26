@@ -20,6 +20,7 @@ error MissingBatchData(uint256 vrgda, bool targetPrice, bool priceDecayPercent, 
 /// @title Variable Rate Gradual Dutch Auction
 /// @notice Sell tokens roughly according to an issuance schedule.
 contract LinearVRGDA {
+    
     /*//////////////////////////////////////////////////////////////
                 VRGDA STORAGE
     //////////////////////////////////////////////////////////////*/
