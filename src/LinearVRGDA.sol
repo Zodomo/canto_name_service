@@ -74,7 +74,12 @@ contract LinearVRGDA {
     constructor() {}
 
     // Initializes an individual VRGDA (can also reinitialize)
-    function _initialize(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) internal {
+    function _initialize(
+        uint256 _VRGDA,
+        int256 _targetPrice,
+        int256 _priceDecayPercent,
+        int256 _perTimeUnit
+    ) internal {
         if (_VRGDA > 0 && _VRGDA < 6) {
             vrgdaData[_VRGDA].targetPrice = _targetPrice;
             vrgdaData[_VRGDA].priceDecayPercent = _priceDecayPercent;

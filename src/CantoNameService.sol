@@ -140,14 +140,24 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
 
     // Initialize / Reset a single VRGDA
     // Can only be performed after batch initialization
-    function vrgdaInit(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public onlyOwner {
+    function vrgdaInit(
+        uint256 _VRGDA,
+        int256 _targetPrice,
+        int256 _priceDecayPercent,
+        int256 _perTimeUnit
+    ) public onlyOwner {
         require(batchInitialized == true, "CantoNameService::vrgdaInit::INITIALIZE_BATCH");
         _initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
     }
 
     // Prepare initialization data for each VRGDA
     // Can only be called before batch initialization
-    function vrgdaPrep(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit) public onlyOwner {
+    function vrgdaPrep(
+        uint256 _VRGDA,
+        int256 _targetPrice,
+        int256 _priceDecayPercent,
+        int256 _perTimeUnit
+    ) public onlyOwner {
         require(batchInitialized == false, "CantoNameService::vrgdaPrep::BATCH_INITIALIZED");
         if (_VRGDA > 0 && _VRGDA < 6) {
             initData[_VRGDA].targetPrice = _targetPrice;
@@ -233,7 +243,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     // Anyone can register names to anyone
 
     // Internal register logic
-    function _register(string memory _name, uint256 _tokenId, uint256 _expiry) internal {
+    function _register(
+        string memory _name,
+        uint256 _tokenId,
+        uint256 _expiry
+    ) internal {
         if (isReserved(_tokenId)) {
             // Consume reservation, validity will be checked during burn
             burnReservation(_tokenId);
@@ -247,7 +261,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Recipient checking is processed with safe call
-    function safeRegister(address _to, string memory _name, uint256 _term) public payable {
+    function safeRegister(
+        address _to,
+        string memory _name,
+        uint256 _term
+    ) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
@@ -278,7 +296,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Recipient checking is not processed with this call
-    function unsafeRegister(address _to, string memory _name, uint256 _term) public payable {
+    function unsafeRegister(
+        address _to,
+        string memory _name,
+        uint256 _term
+    ) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
@@ -414,7 +436,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
 
     // Internal delegation logic
     // _expiry requires exact timestamp
-    function _delegate(uint256 _tokenId, address delegate_, uint256 _expiry) internal {
+    function _delegate(
+        uint256 _tokenId,
+        address delegate_,
+        uint256 _expiry
+    ) internal {
         // Require delegation term not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _expiry, "CantoNameService::_delegate::OWNERSHIP_EXPIRY");
         // Require not already delegated
@@ -435,14 +461,22 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Pass call with string through to primary logic
-    function delegateName(string memory _name, address delegate_, uint256 _term) public {
+    function delegateName(
+        string memory _name,
+        address delegate_,
+        uint256 _term
+    ) public {
         // Generate name ID
         uint256 tokenId = nameToID(_name);
         delegateName(tokenId, delegate_, _term);
     }
 
     // Allow owner, approved, or operator to delegate a name for a specific term in years
-    function delegateName(uint256 _tokenId, address delegate_, uint256 _term) public {
+    function delegateName(
+        uint256 _tokenId,
+        address delegate_,
+        uint256 _term
+    ) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateName::NOT_APPROVED");
 
@@ -454,13 +488,21 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     // Pass call with string through to primary logic
-    function delegateNameWithPrecision(string memory _name, address delegate_, uint256 _expiry) public {
+    function delegateNameWithPrecision(
+        string memory _name,
+        address delegate_,
+        uint256 _expiry
+    ) public {
         uint256 tokenId = nameToID(_name);
         delegateNameWithPrecision(tokenId, delegate_, _expiry);
     }
 
     // Process delegation with precise expiry timestamp if yearly term is too imprecise
-    function delegateNameWithPrecision(uint256 _tokenId, address delegate_, uint256 _expiry) public {
+    function delegateNameWithPrecision(
+        uint256 _tokenId,
+        address delegate_,
+        uint256 _expiry
+    ) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateNameWithPrecision::NOT_APPROVED");
 
