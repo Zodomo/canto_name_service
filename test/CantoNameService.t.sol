@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.17;
 
 import {DSTestPlus} from "./utils/DSTestPlus.sol";
+
 // import {DSInvariantTest} from "./utils/DSInvariantTest.sol";
 
 // import {MockERC721} from "./utils/mocks/MockERC721.sol";
 
 // import {ERC721} from "../src/ERC721.sol";
+
+import {Allowlist} from "../src/Allowlist.sol";
 import {CantoNameService} from "../src/CantoNameService.sol";
 
-import {ERC721TokenReceiver} from "../src/ERC721.sol";
+import "openzeppelin-contracts/token/ERC721/IERC721Receiver.sol";
 
-contract ERC721Recipient is ERC721TokenReceiver {
+contract ERC721Recipient is IERC721Receiver {
     address public operator;
     address public from;
     uint256 public id;
@@ -28,25 +31,26 @@ contract ERC721Recipient is ERC721TokenReceiver {
         id = _id;
         data = _data;
 
-        return ERC721TokenReceiver.onERC721Received.selector;
+        return IERC721Receiver.onERC721Received.selector;
     }
 }
 
-contract RevertingERC721Recipient is ERC721TokenReceiver {
+contract RevertingERC721Recipient is IERC721Receiver {
     function onERC721Received(address, address, uint256, bytes calldata) public virtual override returns (bytes4) {
-        revert(string(abi.encodePacked(ERC721TokenReceiver.onERC721Received.selector)));
+        revert(string(abi.encodePacked(IERC721Receiver.onERC721Received.selector)));
     }
 }
 
-contract WrongReturnDataERC721Recipient is ERC721TokenReceiver {
+contract WrongReturnDataERC721Recipient is IERC721Receiver {
     function onERC721Received(address, address, uint256, bytes calldata) public virtual override returns (bytes4) {
         return 0xCAFEBEEF;
     }
 }
 
-contract CNSTest is DSTestPlus {
+contract CNSTest is DSTestPlus, IERC721Receiver {
     CantoNameService token;
 
+    // Allowlist needs to be deployed and its address passed to CantoNameService constructor
     function setUp() public {
         token = new CantoNameService();
         token.testingInitialize();
