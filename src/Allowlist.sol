@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "openzeppelin-contracts/access/Ownable.sol";
+
 // Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
-contract Allowlist {
+contract Allowlist is Ownable {
     
     /*//////////////////////////////////////////////////////////////
                 EVENTS
@@ -39,13 +41,28 @@ contract Allowlist {
     mapping(address => bool) internal reservationUsed;
 
     // Name reservation mappings to assist with lookups
-    mapping(address => uint256) public nameReservation;
-    mapping(uint256 => address) public nameReserver;
+    mapping(address => uint256) internal nameReservation;
+    mapping(uint256 => address) internal nameReserver;
     // Stores reservation expiry timestamp, currently 365 days after reservation
     mapping(address => uint256) internal reservationExpiry;
 
     // Cutoff timestamp
     uint256 cutoff;
+
+    /*//////////////////////////////////////////////////////////////
+                GENERAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // Allow admin to manually set registrations
+    function administrativeReservation(
+        address _reserver,
+        uint256 _tokenId,
+        uint256 _expiry
+    ) public {
+        nameReserver[_tokenId] = _reserver;
+        nameReservation[_reserver] = _tokenId;
+        reservationExpiry[_reserver] = _expiry;
+    }
 
     // Return reserved ID
     function getReservation(address _reserver) public view returns (uint256) {
@@ -59,6 +76,7 @@ contract Allowlist {
     function getReservationExpiry(address _reserver) public view returns (uint256) {
         return reservationExpiry[_reserver];
     }
+
     // Delete the above data
     function deleteReservation(uint256 _tokenId) public {
         require(nameReserver[_tokenId] == msg.sender, "Allowlist::deleteReservation::NOT_RESERVER");
@@ -100,6 +118,7 @@ contract Allowlist {
     //////////////////////////////////////////////////////////////*/
 
     constructor(uint256 _cutoff) {
+        transferOwnership(msg.sender);
         INITIAL_CHAIN_ID = block.chainid;
         INITIAL_DOMAIN_SEPARATOR = computeDomainSeparator();
         cutoff = block.timestamp + _cutoff;
@@ -155,6 +174,8 @@ contract Allowlist {
 
     // Callable verify function that only requires signature argument
     function verify(bytes memory _sig) public {
+        // Require cutoff hasn't been reached
+        require(cutoff >= block.timestamp, "Allowlist::verify::RESERVATIONS_CLOSED");
         // Split signature to prep _verify call args
         (bytes32 r, bytes32 s, uint8 v) = splitSignature(_sig);
         _verify(v, r, s);
