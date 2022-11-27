@@ -386,47 +386,71 @@ contract CNSTest is DSTestPlus {
         cns.transferFrom(address(0xFEED), address(0xBEEF), "test");
     }
 
+    function testFailSafeTransferFromToNonERC721Recipient() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new NonERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test");
+    }
+
+    function testFailSafeTransferFromToNonERC721RecipientWithData() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new NonERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test", "testing 123");
+    }
+
+    function testFailSafeTransferFromToRevertingERC721Recipient() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new RevertingERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test");
+    }
+
+    function testFailSafeTransferFromToRevertingERC721RecipientWithData() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new RevertingERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test", "testing 123");
+    }
+
+    function testFailSafeTransferFromToERC721RecipientWithWrongReturnData() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new WrongReturnDataERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test");
+    }
+
+    function testFailSafeTransferFromToERC721RecipientWithWrongReturnDataWithData() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(new WrongReturnDataERC721Recipient());
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.safeTransferFrom(address(this), to, "test", "testing 123");
+    }
+
     /*//////////////////////////////////////////////////////////////
                 UNFINISHED
     //////////////////////////////////////////////////////////////*/
     
     /*
-
-    function testFailSafeTransferFromToNonERC721Recipient() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), tokenId);
-    }
-
-    function testFailSafeTransferFromToNonERC721RecipientWithData() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), tokenId, "testing 123");
-    }
-
-    function testFailSafeTransferFromToRevertingERC721Recipient() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), tokenId);
-    }
-
-    function testFailSafeTransferFromToRevertingERC721RecipientWithData() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), tokenId, "testing 123");
-    }
-
-    function testFailSafeTransferFromToERC721RecipientWithWrongReturnData() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), tokenId);
-    }
-
-    function testFailSafeTransferFromToERC721RecipientWithWrongReturnDataWithData() public {
-        cns._mint(address(this), tokenId);
-
-        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), tokenId, "testing 123");
-    }
 
     function testFailSafeMintToNonERC721Recipient() public {
         cns.safeMint(address(new NonERC721Recipient()), tokenId);

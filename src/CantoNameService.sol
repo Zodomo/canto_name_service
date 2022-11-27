@@ -259,6 +259,24 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         ERC721.transferFrom(_from, _to, tokenId);
     }
 
+    function safeTransferFrom(
+        address _from,
+        address _to,
+        string memory _name
+    ) public {
+        CantoNameService.safeTransferFrom(_from, _to, _name, "");
+    }
+
+    function safeTransferFrom(
+        address _from,
+        address _to,
+        string memory _name,
+        bytes memory _data
+    ) public {
+        uint256 tokenId = nameToID(_name);
+        ERC721.safeTransferFrom(_from, _to, tokenId, _data);
+    }
+
     /*//////////////////////////////////////////////////////////////
                 REGISTER LOGIC
     //////////////////////////////////////////////////////////////*/
