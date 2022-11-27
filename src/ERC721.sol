@@ -190,6 +190,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata {
 
     // Displays owner of any token, returns zero address if unminted
     function ownerOf(uint256 tokenId) public view virtual override returns (address) {
+        _requireMinted(tokenId);
         address owner = _ownerOf(tokenId);
         return owner;
     }
