@@ -105,7 +105,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
 
-        cns.approve(target, tokenId);
+        cns.approve(target, "test");
 
         assertEq(cns.getApproved(tokenId), target);
     }
@@ -137,262 +137,319 @@ contract CNSTest is DSTestPlus {
         assertEq(cns.getApproved(tokenId), address(0));
     }
 
+    function testUnsafeTransferFrom() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address from = address(0xBEEF);
+
+        cns.unsafeRegister{ value: price * 1 wei }(from, "test", 1);
+
+        hevm.prank(from);
+        cns.approve(address(this), tokenId);
+
+        cns.transferFrom(from, address(this), tokenId);
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), address(this));
+        assertEq(cns.balanceOf(address(this)), 1);
+        assertEq(cns.balanceOf(from), 0);
+    }
+
+    function testUnsafeTransferFromSelf() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xBEEF);
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.transferFrom(address(this), to, tokenId);
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), to);
+        assertEq(cns.balanceOf(to), 1);
+        assertEq(cns.balanceOf(address(this)), 0);
+    }
+
+    function testUnsafeTransferFromApproveAll() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address from = address(0xABCD);
+        address to = address(0xBEEF);
+
+        cns.unsafeRegister{ value: price * 1 wei }(from, "test", 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.transferFrom(from, to, tokenId);
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), to);
+        assertEq(cns.balanceOf(to), 1);
+        assertEq(cns.balanceOf(from), 0);
+    }
+
+    function testSafeTransferFromToEOA() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address from = address(0xABCD);
+        address to = address(0xBEEF);
+
+        cns.unsafeRegister{ value: price * 1 wei }(from, "test", 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, to, tokenId);
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), to);
+        assertEq(cns.balanceOf(to), 1);
+        assertEq(cns.balanceOf(from), 0);
+    }
+
+    function testSafeTransferFromToERC721Recipient() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address from = address(0xABCD);
+        ERC721Recipient recipient = new ERC721Recipient();
+
+        cns.unsafeRegister{ value: price * 1 wei }(from, "test", 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, address(recipient), tokenId);
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), address(recipient));
+        assertEq(cns.balanceOf(address(recipient)), 1);
+        assertEq(cns.balanceOf(from), 0);
+
+        assertEq(recipient.operator(), address(this));
+        assertEq(recipient.from(), from);
+        assertEq(recipient.id(), tokenId);
+        assertBytesEq(recipient.data(), "");
+    }
+
+    function testSafeTransferFromToERC721RecipientWithData() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address from = address(0xABCD);
+        ERC721Recipient recipient = new ERC721Recipient();
+
+        cns.unsafeRegister{ value: price * 1 wei }(from, "test", 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, address(recipient), tokenId, "testing 123");
+
+        assertEq(cns.getApproved(tokenId), address(0));
+        assertEq(cns.ownerOf(tokenId), address(recipient));
+        assertEq(cns.balanceOf(address(recipient)), 1);
+        assertEq(cns.balanceOf(from), 0);
+
+        assertEq(recipient.operator(), address(this));
+        assertEq(recipient.from(), from);
+        assertEq(recipient.id(), tokenId);
+        assertBytesEq(recipient.data(), "testing 123");
+    }
+
+    function testSafeMintToEOA() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xBEEF);
+
+        cns.safeRegister{ value: price * 1 wei }(to, "test", 1);
+
+        assertEq(cns.ownerOf(tokenId), address(to));
+        assertEq(cns.balanceOf(address(to)), 1);
+    }
+
+    function testSafeMintToERC721Recipient() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        ERC721Recipient to = new ERC721Recipient();
+
+        cns.safeRegister{ value: price * 1 wei }(address(to), "test", 1);
+
+        assertEq(cns.ownerOf(tokenId), address(to));
+        assertEq(cns.balanceOf(address(to)), 1);
+
+        assertEq(to.operator(), address(this));
+        assertEq(to.from(), address(0));
+        assertEq(to.id(), tokenId);
+        assertBytesEq(to.data(), "");
+    }
+
+    function testSafeMintToERC721RecipientWithData() public {
+        uint256 tokenId = cns.nameToID("test");
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        ERC721Recipient to = new ERC721Recipient();
+
+        cns.safeRegister{ value: price * 1 wei }(address(to), "test", 1, "testing 123");
+
+        assertEq(cns.ownerOf(tokenId), address(to));
+        assertEq(cns.balanceOf(address(to)), 1);
+
+        assertEq(to.operator(), address(this));
+        assertEq(to.from(), address(0));
+        assertEq(to.id(), tokenId);
+        assertBytesEq(to.data(), "testing 123");
+    }
+
+    function testFailMintToZero() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(0), "test", 1);
+    }
+
+    function testFailDoubleMint() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xBEEF);
+
+        cns.unsafeRegister{ value: price * 1 wei }(to, "test", 1);
+        cns.unsafeRegister{ value: price * 1 wei }(to, "test", 1);
+    }
+
+    function testFailBurnUnMinted() public {
+        cns.burnName("test");
+    }
+
+    function testFailDoubleBurn() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.burnName("test");
+        cns.burnName("test");
+    }
+
+    function testFailApproveUnMinted() public {
+        cns.approve(address(0xBEEF), "test");
+    }
+
+    function testFailApproveUnAuthorized() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xCAFE);
+
+        cns.unsafeRegister{ value: price * 1 wei }(to, "test", 1);
+
+        cns.approve(address(0xBEEF), "test");
+    }
+
+    function testFailTransferFromUnOwned() public {
+        cns.transferFrom(address(0xFEED), address(0xBEEF), "test");
+    }
+
+    function testFailTransferFromWrongFrom() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xCAFE);
+
+        cns.unsafeRegister{ value: price * 1 wei }(to, "test", 1);
+
+        hevm.prank(to);
+        cns.transferFrom(address(0xFEED), address(0xBEEF), "test");
+    }
+
+    function testFailTransferFromToZero() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+
+        cns.unsafeRegister{ value: price * 1 wei }(address(this), "test", 1);
+
+        cns.transferFrom(address(this), address(0), "test");
+    }
+
+    function testFailTransferFromNotOwner() public {
+        uint256 length = cns.stringLength("test");
+        uint256 price = cns.priceName(length);
+        address to = address(0xCAFE);
+
+        cns.unsafeRegister{ value: price * 1 wei }(to, "test", 1);
+
+        cns.transferFrom(address(0xFEED), address(0xBEEF), "test");
+    }
+
     /*//////////////////////////////////////////////////////////////
                 UNFINISHED
     //////////////////////////////////////////////////////////////*/
     
     /*
 
-    function testTransferFrom() public {
-        address from = address(0xABCD);
-
-        cns._mint(from, 1337);
-
-        hevm.prank(from);
-        cns.approve(address(this), 1337);
-
-        cns.transferFrom(from, address(0xBEEF), 1337);
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(0xBEEF));
-        assertEq(cns.balanceOf(address(0xBEEF)), 1);
-        assertEq(cns.balanceOf(from), 0);
-    }
-
-    function testTransferFromSelf() public {
-        cns._mint(address(this), 1337);
-
-        cns.transferFrom(address(this), address(0xBEEF), 1337);
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(0xBEEF));
-        assertEq(cns.balanceOf(address(0xBEEF)), 1);
-        assertEq(cns.balanceOf(address(this)), 0);
-    }
-
-    function testTransferFromApproveAll() public {
-        address from = address(0xABCD);
-
-        cns._mint(from, 1337);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.transferFrom(from, address(0xBEEF), 1337);
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(0xBEEF));
-        assertEq(cns.balanceOf(address(0xBEEF)), 1);
-        assertEq(cns.balanceOf(from), 0);
-    }
-
-    function testSafeTransferFromToEOA() public {
-        address from = address(0xABCD);
-
-        cns._mint(from, 1337);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, address(0xBEEF), 1337);
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(0xBEEF));
-        assertEq(cns.balanceOf(address(0xBEEF)), 1);
-        assertEq(cns.balanceOf(from), 0);
-    }
-
-    /*
-
-    function testSafeTransferFromToERC721Recipient() public {
-        address from = address(0xABCD);
-        ERC721Recipient recipient = new ERC721Recipient();
-
-        cns._mint(from, 1337);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, address(recipient), 1337);
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(recipient));
-        assertEq(cns.balanceOf(address(recipient)), 1);
-        assertEq(cns.balanceOf(from), 0);
-
-        assertEq(recipient.operator(), address(this));
-        assertEq(recipient.from(), from);
-        assertEq(recipient.id(), 1337);
-        assertBytesEq(recipient.data(), "");
-    }
-
-    function testSafeTransferFromToERC721RecipientWithData() public {
-        address from = address(0xABCD);
-        ERC721Recipient recipient = new ERC721Recipient();
-
-        cns._mint(from, 1337);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, address(recipient), 1337, "testing 123");
-
-        assertEq(cns.getApproved(1337), address(0));
-        assertEq(cns.ownerOf(1337), address(recipient));
-        assertEq(cns.balanceOf(address(recipient)), 1);
-        assertEq(cns.balanceOf(from), 0);
-
-        assertEq(recipient.operator(), address(this));
-        assertEq(recipient.from(), from);
-        assertEq(recipient.id(), 1337);
-        assertBytesEq(recipient.data(), "testing 123");
-    }
-
-    function testSafeMintToEOA() public {
-        cns.safeMint(address(0xBEEF), 1337);
-
-        assertEq(cns.ownerOf(1337), address(address(0xBEEF)));
-        assertEq(cns.balanceOf(address(address(0xBEEF))), 1);
-    }
-
-    function testSafeMintToERC721Recipient() public {
-        ERC721Recipient to = new ERC721Recipient();
-
-        cns.safeMint(address(to), 1337);
-
-        assertEq(cns.ownerOf(1337), address(to));
-        assertEq(cns.balanceOf(address(to)), 1);
-
-        assertEq(to.operator(), address(this));
-        assertEq(to.from(), address(0));
-        assertEq(to.id(), 1337);
-        assertBytesEq(to.data(), "");
-    }
-
-    function testSafeMintToERC721RecipientWithData() public {
-        ERC721Recipient to = new ERC721Recipient();
-
-        cns.safeMint(address(to), 1337, "testing 123");
-
-        assertEq(cns.ownerOf(1337), address(to));
-        assertEq(cns.balanceOf(address(to)), 1);
-
-        assertEq(to.operator(), address(this));
-        assertEq(to.from(), address(0));
-        assertEq(to.id(), 1337);
-        assertBytesEq(to.data(), "testing 123");
-    }
-
-    function testFailMintToZero() public {
-        cns._mint(address(0), 1337);
-    }
-
-    function testFailDoubleMint() public {
-        cns._mint(address(0xBEEF), 1337);
-        cns._mint(address(0xBEEF), 1337);
-    }
-
-    function testFailBurnUnMinted() public {
-        cns._burn(1337);
-    }
-
-    function testFailDoubleBurn() public {
-        cns._mint(address(0xBEEF), 1337);
-
-        cns._burn(1337);
-        cns._burn(1337);
-    }
-
-    function testFailApproveUnMinted() public {
-        cns.approve(address(0xBEEF), 1337);
-    }
-
-    function testFailApproveUnAuthorized() public {
-        cns._mint(address(0xCAFE), 1337);
-
-        cns.approve(address(0xBEEF), 1337);
-    }
-
-    function testFailTransferFromUnOwned() public {
-        cns.transferFrom(address(0xFEED), address(0xBEEF), 1337);
-    }
-
-    function testFailTransferFromWrongFrom() public {
-        cns._mint(address(0xCAFE), 1337);
-
-        cns.transferFrom(address(0xFEED), address(0xBEEF), 1337);
-    }
-
-    function testFailTransferFromToZero() public {
-        cns._mint(address(this), 1337);
-
-        cns.transferFrom(address(this), address(0), 1337);
-    }
-
-    function testFailTransferFromNotOwner() public {
-        cns._mint(address(0xFEED), 1337);
-
-        cns.transferFrom(address(0xFEED), address(0xBEEF), 1337);
-    }
-
     function testFailSafeTransferFromToNonERC721Recipient() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), 1337);
+        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), tokenId);
     }
 
     function testFailSafeTransferFromToNonERC721RecipientWithData() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), 1337, "testing 123");
+        cns.safeTransferFrom(address(this), address(new NonERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailSafeTransferFromToRevertingERC721Recipient() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), 1337);
+        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), tokenId);
     }
 
     function testFailSafeTransferFromToRevertingERC721RecipientWithData() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), 1337, "testing 123");
+        cns.safeTransferFrom(address(this), address(new RevertingERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailSafeTransferFromToERC721RecipientWithWrongReturnData() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), 1337);
+        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), tokenId);
     }
 
     function testFailSafeTransferFromToERC721RecipientWithWrongReturnDataWithData() public {
-        cns._mint(address(this), 1337);
+        cns._mint(address(this), tokenId);
 
-        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), 1337, "testing 123");
+        cns.safeTransferFrom(address(this), address(new WrongReturnDataERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailSafeMintToNonERC721Recipient() public {
-        cns.safeMint(address(new NonERC721Recipient()), 1337);
+        cns.safeMint(address(new NonERC721Recipient()), tokenId);
     }
 
     function testFailSafeMintToNonERC721RecipientWithData() public {
-        cns.safeMint(address(new NonERC721Recipient()), 1337, "testing 123");
+        cns.safeMint(address(new NonERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailSafeMintToRevertingERC721Recipient() public {
-        cns.safeMint(address(new RevertingERC721Recipient()), 1337);
+        cns.safeMint(address(new RevertingERC721Recipient()), tokenId);
     }
 
     function testFailSafeMintToRevertingERC721RecipientWithData() public {
-        cns.safeMint(address(new RevertingERC721Recipient()), 1337, "testing 123");
+        cns.safeMint(address(new RevertingERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailSafeMintToERC721RecipientWithWrongReturnData() public {
-        cns.safeMint(address(new WrongReturnDataERC721Recipient()), 1337);
+        cns.safeMint(address(new WrongReturnDataERC721Recipient()), tokenId);
     }
 
     function testFailSafeMintToERC721RecipientWithWrongReturnDataWithData() public {
-        cns.safeMint(address(new WrongReturnDataERC721Recipient()), 1337, "testing 123");
+        cns.safeMint(address(new WrongReturnDataERC721Recipient()), tokenId, "testing 123");
     }
 
     function testFailBalanceOfZeroAddress() public view {
@@ -400,7 +457,7 @@ contract CNSTest is DSTestPlus {
     }
 
     function testFailOwnerOfUnminted() public view {
-        cns.ownerOf(1337);
+        cns.ownerOf(tokenId);
     }
 
     function testMetadata(string memory name, string memory symbol) public {

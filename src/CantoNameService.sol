@@ -242,6 +242,24 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
     }
 
     /*//////////////////////////////////////////////////////////////
+                ERC721 OVERLOADS
+    //////////////////////////////////////////////////////////////*/
+
+    function approve(address _to, string memory _name) public {
+        uint256 tokenId = nameToID(_name);
+        ERC721.approve(_to, tokenId);
+    }
+
+    function transferFrom(
+        address _from,
+        address _to,
+        string memory _name
+    ) public {
+        uint256 tokenId = nameToID(_name);
+        ERC721.transferFrom(_from, _to, tokenId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                 REGISTER LOGIC
     //////////////////////////////////////////////////////////////*/
 
@@ -268,11 +286,21 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         emit Register(ERC721.ownerOf(_tokenId), _tokenId, _expiry);
     }
 
-    // Recipient checking is processed with safe call
+    // Pass call with no extra calldata through to primary logic
     function safeRegister(
         address _to,
         string memory _name,
         uint256 _term
+    ) public payable {
+        safeRegister(_to, _name, _term, "");
+    }
+
+    // Register name to ERC721-compatible destination
+    function safeRegister(
+        address _to,
+        string memory _name,
+        uint256 _term,
+        bytes memory _data
     ) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
@@ -289,7 +317,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         require(msg.value >= price * _term, "CantoNameService::safeRegister::INSUFFICIENT_PAYMENT");
 
         // Call internal safe mint logic
-        _safeMint(_to, tokenId);
+        _safeMint(_to, tokenId, _data);
 
         // Call internal register logic
         _register(_name, tokenId, expiry);
