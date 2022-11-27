@@ -245,9 +245,19 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 ERC721 OVERLOADS
     //////////////////////////////////////////////////////////////*/
 
+    function ownerOf(string memory _name) public view returns (address) {
+        uint256 tokenId = nameToID(_name);
+        return ERC721.ownerOf(tokenId);
+    }
+
     function approve(address _to, string memory _name) public {
         uint256 tokenId = nameToID(_name);
         ERC721.approve(_to, tokenId);
+    }
+
+    function getApproved(string memory _name) public view returns (address) {
+        uint256 tokenId = nameToID(_name);
+        return ERC721.getApproved(tokenId);
     }
 
     function transferFrom(
