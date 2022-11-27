@@ -489,7 +489,9 @@ contract CNSTest is DSTestPlus {
     }
 
     function testApprove(address _to, string memory _name) public {
-        if (_to == address(0)) _to = address(0xBEEF);
+        if (_to == address(0) || _to == address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84)) {
+            _to = address(0xBEEF);
+        }
         if (cns.stringLength(_name) == 0) _name = name;
 
         uint256 _length = cns.stringLength(_name);
@@ -504,7 +506,9 @@ contract CNSTest is DSTestPlus {
     }
 
     function testApproveBurn(address _to, string memory _name) public {
-        if (_to == address(0)) _to = address(0xBEEF);
+        if (_to == address(0) || _to == address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84)) {
+            _to = address(0xBEEF);
+        }
         if (cns.stringLength(_name) == 0) _name = name;
 
         uint256 _length = cns.stringLength(_name);
@@ -535,7 +539,10 @@ contract CNSTest is DSTestPlus {
         if (_to == address(0) || _to == from) _to = address(0xBEEF);
         if (cns.stringLength(_name) == 0) _name = name;
 
-        cns.unsafeRegister{ value: price * 1 wei }(from, _name, 1);
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.unsafeRegister{ value: _price * 1 wei }(from, _name, 1);
 
         hevm.prank(from);
         cns.approve(address(this), _name);
@@ -548,146 +555,184 @@ contract CNSTest is DSTestPlus {
         assertEq(cns.balanceOf(from), 0);
     }
 
+    function testTransferFromSelf(address _to, string memory _name) public {
+        if (_to == address(0) || _to == address(this)) _to = address(0xBEEF);
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.unsafeRegister{ value: _price * 1 wei }(address(this), _name, 1);
+
+        cns.transferFrom(address(this), _to, _name);
+
+        assertEq(cns.getApproved(_name), address(0));
+        assertEq(cns.ownerOf(_name), _to);
+        assertEq(cns.balanceOf(_to), 1);
+        assertEq(cns.balanceOf(address(this)), 0);
+    }
+
+    function testTransferFromApproveAll(address _to, string memory _name) public {
+        address from = address(0xABCD);
+
+        if (_to == address(0) || _to == from) _to = address(0xBEEF);
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.unsafeRegister{ value: _price * 1 wei }(from, _name, 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.transferFrom(from, _to, _name);
+
+        assertEq(cns.getApproved(_name), address(0));
+        assertEq(cns.ownerOf(_name), _to);
+        assertEq(cns.balanceOf(_to), 1);
+        assertEq(cns.balanceOf(from), 0);
+    }
+
+    function testSafeTransferFromToEOA(address _to, string memory _name) public {
+        address from = address(0xABCD);
+
+        if (_to == address(0) || _to == from) _to = address(0xBEEF);
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        if (uint256(uint160(_to)) <= 18 || _to.code.length > 0) return;
+
+        cns.unsafeRegister{ value: _price * 1 wei }(from, _name, 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, _to, _name);
+
+        assertEq(cns.getApproved(_name), address(0));
+        assertEq(cns.ownerOf(_name), _to);
+        assertEq(cns.balanceOf(_to), 1);
+        assertEq(cns.balanceOf(from), 0);
+    }
+
+    function testSafeTransferFromToERC721Recipient(string memory _name) public {
+        address from = address(0xABCD);
+        ERC721Recipient recipient = new ERC721Recipient();
+
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.unsafeRegister{ value: _price * 1 wei }(from, _name, 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, address(recipient), _name);
+
+        assertEq(cns.getApproved(_name), address(0));
+        assertEq(cns.ownerOf(_name), address(recipient));
+        assertEq(cns.balanceOf(address(recipient)), 1);
+        assertEq(cns.balanceOf(from), 0);
+
+        assertEq(recipient.operator(), address(this));
+        assertEq(recipient.from(), from);
+        assertEq(recipient.id(), cns.nameToID(_name));
+        assertBytesEq(recipient.data(), "");
+    }
+
+    function testSafeTransferFromToERC721RecipientWithData(string memory _name, bytes calldata _data) public {
+        address from = address(0xABCD);
+        ERC721Recipient recipient = new ERC721Recipient();
+
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.unsafeRegister{ value: _price * 1 wei }(from, _name, 1);
+
+        hevm.prank(from);
+        cns.setApprovalForAll(address(this), true);
+
+        cns.safeTransferFrom(from, address(recipient), _name, _data);
+
+        assertEq(cns.getApproved(_name), address(0));
+        assertEq(cns.ownerOf(_name), address(recipient));
+        assertEq(cns.balanceOf(address(recipient)), 1);
+        assertEq(cns.balanceOf(from), 0);
+
+        assertEq(recipient.operator(), address(this));
+        assertEq(recipient.from(), from);
+        assertEq(recipient.id(), cns.nameToID(_name));
+        assertBytesEq(recipient.data(), _data);
+    }
+
+    function testSafeRegisterToEOA(address _to, string memory _name) public {
+        if (_to == address(0) || _to == address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84)) {
+            _to = address(0xBEEF);
+        }
+
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        if (uint256(uint160(_to)) <= 18 || _to.code.length > 0) return;
+
+        cns.safeRegister{ value: _price * 1 wei }(_to, _name, 1);
+
+        assertEq(cns.ownerOf(_name), address(_to));
+        assertEq(cns.balanceOf(address(_to)), 1);
+    }
+
+    function testSafeMintToERC721Recipient(string memory _name) public {
+        ERC721Recipient to = new ERC721Recipient();
+
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.safeRegister{ value: _price * 1 wei }(address(to), _name, 1);
+
+        assertEq(cns.ownerOf(_name), address(to));
+        assertEq(cns.balanceOf(address(to)), 1);
+
+        assertEq(to.operator(), address(this));
+        assertEq(to.from(), address(0));
+        assertEq(to.id(), cns.nameToID(_name));
+        assertBytesEq(to.data(), "");
+    }
+
+    function testSafeMintToERC721RecipientWithData(string memory _name, bytes calldata _data) public {
+        ERC721Recipient to = new ERC721Recipient();
+
+        if (cns.stringLength(_name) == 0) _name = name;
+
+        uint256 _length = cns.stringLength(_name);
+        uint256 _price = cns.priceName(_length);
+
+        cns.safeRegister{ value: _price * 1 wei }(address(to), _name, 1, _data);
+
+        assertEq(cns.ownerOf(_name), address(to));
+        assertEq(cns.balanceOf(address(to)), 1);
+
+        assertEq(to.operator(), address(this));
+        assertEq(to.from(), address(0));
+        assertEq(to.id(), cns.nameToID(_name));
+        assertBytesEq(to.data(), _data);
+    }
+
     /*//////////////////////////////////////////////////////////////
                 UNFINISHED
     //////////////////////////////////////////////////////////////*/
     
     /*
-
-    function testTransferFromSelf(uint256 id, address to) public {
-        if (to == address(0) || to == address(this)) to = address(0xBEEF);
-
-        cns._mint(address(this), id);
-
-        cns.transferFrom(address(this), to, id);
-
-        assertEq(cns.getApproved(id), address(0));
-        assertEq(cns.ownerOf(id), to);
-        assertEq(cns.balanceOf(to), 1);
-        assertEq(cns.balanceOf(address(this)), 0);
-    }
-
-    function testTransferFromApproveAll(uint256 id, address to) public {
-        address from = address(0xABCD);
-
-        if (to == address(0) || to == from) to = address(0xBEEF);
-
-        cns._mint(from, id);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.transferFrom(from, to, id);
-
-        assertEq(cns.getApproved(id), address(0));
-        assertEq(cns.ownerOf(id), to);
-        assertEq(cns.balanceOf(to), 1);
-        assertEq(cns.balanceOf(from), 0);
-    }
-
-    function testSafeTransferFromToEOA(uint256 id, address to) public {
-        address from = address(0xABCD);
-
-        if (to == address(0) || to == from) to = address(0xBEEF);
-
-        if (uint256(uint160(to)) <= 18 || to.code.length > 0) return;
-
-        cns._mint(from, id);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, to, id);
-
-        assertEq(cns.getApproved(id), address(0));
-        assertEq(cns.ownerOf(id), to);
-        assertEq(cns.balanceOf(to), 1);
-        assertEq(cns.balanceOf(from), 0);
-    }
-
-    function testSafeTransferFromToERC721Recipient(uint256 id) public {
-        address from = address(0xABCD);
-
-        ERC721Recipient recipient = new ERC721Recipient();
-
-        cns._mint(from, id);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, address(recipient), id);
-
-        assertEq(cns.getApproved(id), address(0));
-        assertEq(cns.ownerOf(id), address(recipient));
-        assertEq(cns.balanceOf(address(recipient)), 1);
-        assertEq(cns.balanceOf(from), 0);
-
-        assertEq(recipient.operator(), address(this));
-        assertEq(recipient.from(), from);
-        assertEq(recipient.id(), id);
-        assertBytesEq(recipient.data(), "");
-    }
-
-    function testSafeTransferFromToERC721RecipientWithData(uint256 id, bytes calldata data) public {
-        address from = address(0xABCD);
-        ERC721Recipient recipient = new ERC721Recipient();
-
-        cns._mint(from, id);
-
-        hevm.prank(from);
-        cns.setApprovalForAll(address(this), true);
-
-        cns.safeTransferFrom(from, address(recipient), id, data);
-
-        assertEq(cns.getApproved(id), address(0));
-        assertEq(cns.ownerOf(id), address(recipient));
-        assertEq(cns.balanceOf(address(recipient)), 1);
-        assertEq(cns.balanceOf(from), 0);
-
-        assertEq(recipient.operator(), address(this));
-        assertEq(recipient.from(), from);
-        assertEq(recipient.id(), id);
-        assertBytesEq(recipient.data(), data);
-    }
-
-    function testSafeMintToEOA(uint256 id, address to) public {
-        if (to == address(0)) to = address(0xBEEF);
-
-        if (uint256(uint160(to)) <= 18 || to.code.length > 0) return;
-
-        cns.safeMint(to, id);
-
-        assertEq(cns.ownerOf(id), address(to));
-        assertEq(cns.balanceOf(address(to)), 1);
-    }
-
-    function testSafeMintToERC721Recipient(uint256 id) public {
-        ERC721Recipient to = new ERC721Recipient();
-
-        cns.safeMint(address(to), id);
-
-        assertEq(cns.ownerOf(id), address(to));
-        assertEq(cns.balanceOf(address(to)), 1);
-
-        assertEq(to.operator(), address(this));
-        assertEq(to.from(), address(0));
-        assertEq(to.id(), id);
-        assertBytesEq(to.data(), "");
-    }
-
-    function testSafeMintToERC721RecipientWithData(uint256 id, bytes calldata data) public {
-        ERC721Recipient to = new ERC721Recipient();
-
-        cns.safeMint(address(to), id, data);
-
-        assertEq(cns.ownerOf(id), address(to));
-        assertEq(cns.balanceOf(address(to)), 1);
-
-        assertEq(to.operator(), address(this));
-        assertEq(to.from(), address(0));
-        assertEq(to.id(), id);
-        assertBytesEq(to.data(), data);
-    }
 
     function testFailMintToZero(uint256 id) public {
         cns._mint(address(0), id);
