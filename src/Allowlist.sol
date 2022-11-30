@@ -41,10 +41,10 @@ contract Allowlist is Ownable {
     mapping(address => bool) internal reservationUsed;
 
     // Name reservation mappings to assist with lookups
-    mapping(address => uint256) internal nameReservation;
-    mapping(uint256 => address) internal nameReserver;
+    mapping(address => uint256) public nameReservation;
+    mapping(uint256 => address) public nameReserver;
     // Stores reservation expiry timestamp, currently 365 days after reservation
-    mapping(address => uint256) internal reservationExpiry;
+    mapping(address => uint256) public reservationExpiry;
 
     // Cutoff timestamp
     uint256 cutoff;
