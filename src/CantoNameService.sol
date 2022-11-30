@@ -215,14 +215,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         allowlist.administrativeReservation(_reserver, tokenId, reservationExpiry);
     }
 
-    // TODO: Excessively long, can just return allowlist.getReserver(_tokenId) != address(0x0)
     // Check to see if name is reserved
     function isReserved(uint256 _tokenId) public view returns (bool) {
-        if (allowlist.getReserver(_tokenId) != address(0x0)) {
-            return true;
-        } else {
-            return false;
-        }
+        return allowlist.getReserver(_tokenId) != address(0x0);
     }
 
     // Check to make sure reservation is valid
