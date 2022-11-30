@@ -53,8 +53,8 @@ contract Allowlist is Ownable {
                 GENERAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// TODO: It seems like anyone can call this function to reserve a Name, it this intended?
-    /// FIX: Change to onlyOwner
+    // TODO: It seems like anyone can call this function to reserve a Name, it this intended?
+    // FIX: Change to onlyOwner
     // Allow admin to manually set registrations
     function administrativeReservation(
         address _reserver,
@@ -66,14 +66,18 @@ contract Allowlist is Ownable {
         reservationExpiry[_reserver] = _expiry;
     }
 
+    // TODO: Why not change the nameReservation mapping to a public mapping and remove this function?
     // Return reserved ID
     function getReservation(address _reserver) public view returns (uint256) {
         return nameReservation[_reserver];
     }
+    // TODO: Why not change the nameReserver mapping to a public mapping and remove this function?
     // Return reserver address
     function getReserver(uint256 _tokenId) public view returns (address) {
         return nameReserver[_tokenId];
     }
+
+    // TODO: Why not change the reservationExpiry mapping to a public mapping and remove this function?
     // Return reservation expiry timestamp
     function getReservationExpiry(address _reserver) public view returns (uint256) {
         return reservationExpiry[_reserver];
