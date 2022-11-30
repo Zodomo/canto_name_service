@@ -233,6 +233,9 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         burnReservation(tokenId);
     }
 
+    // TODO: Add testing, I'm 60% sure this won't work since allowlist.deleteReservation(_tokenId) checks require(nameReserver[_tokenId] == msg.sender, "Allowlist::deleteReservation::NOT_RESERVER");
+    // and msg.sender is this contract address, not the owner of the name. 
+    // FIX: Use tx.origin or call the deleteReservation function directly from the allowlist contract
     // Burn reservation, releasing it for others
     function burnReservation(uint256 _tokenId) public {
         // Check to make sure reservation is valid
