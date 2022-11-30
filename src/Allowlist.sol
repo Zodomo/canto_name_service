@@ -58,7 +58,7 @@ contract Allowlist is Ownable {
         address _reserver,
         uint256 _tokenId,
         uint256 _expiry
-    ) public {
+    ) public onlyOwner {
         nameReserver[_tokenId] = _reserver;
         nameReservation[_reserver] = _tokenId;
         reservationExpiry[_reserver] = _expiry;
@@ -79,10 +79,10 @@ contract Allowlist is Ownable {
 
     // Delete the above data
     function deleteReservation(uint256 _tokenId) public {
-        require(nameReserver[_tokenId] == msg.sender, "Allowlist::deleteReservation::NOT_RESERVER");
+        require(nameReserver[_tokenId] == tx.origin, "Allowlist::deleteReservation::NOT_RESERVER");
         delete nameReserver[_tokenId];
-        delete nameReservation[msg.sender];
-        delete reservationExpiry[msg.sender];
+        delete nameReservation[tx.origin];
+        delete reservationExpiry[tx.origin];
     }
 
     /*//////////////////////////////////////////////////////////////

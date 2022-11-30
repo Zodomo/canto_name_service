@@ -109,9 +109,14 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         if (_length > 0 && _length < 6) {
             price = _getVRGDAPrice(_length, tokenCounts[_length].current);
         } else {
-            price = 1 ether;
+            price = 0.01 ether; // ********* Price will be changed later ***************
         }
         return price;
+    }
+
+    // Overload of the function to calculate total price if yearly term is provided
+    function priceName(uint256 _length, uint256 _term) public view returns (uint256) {
+        return (priceName(_length) * _term);
     }
 
     // Increments the proper counters based on string length (accurate counts through 5)
