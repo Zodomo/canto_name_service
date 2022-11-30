@@ -53,6 +53,8 @@ contract Allowlist is Ownable {
                 GENERAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// TODO: It seems like anyone can call this function to reserve a Name, it this intended?
+    /// FIX: Change to onlyOwner
     // Allow admin to manually set registrations
     function administrativeReservation(
         address _reserver,
