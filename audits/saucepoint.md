@@ -270,3 +270,15 @@ In general, one gas optimization trick is to find all `++` incrementers, and rea
         (_term * 365 days);
 ```
 There's unnecessary math here which increases gas utilization. The current math (above) is doing: `A + B - A + C` (`A - A` cancels out anyway). You just need to add `term * 365` to the existing expiration.
+
+&nbsp;
+
+# `LinearVRGDA.sol`
+
+## Design Flaws
+
+I believe you're aware of this, but `vrgdaTest()` will be removed and you'll need a way for populating `LinearVRGDA.initData` (state variable). This can maybe be done with function arguments, but might be error prone. You could also consider hard-coding the VRGDA parameters in the constructor. In the case of setting the values on-deploy, you won't need the `initData` state.
+
+## Footguns
+
+The VRGDA implementation looks *okay* at first glance, but I think it would be best if you had explicit tests. You can reference the original VRGDA for values to use and assert. IIRC the original VRGDA implementation represents days as `wad` (`10 days = 10e18`), and the `int256` can be tricky at times. Testing that your fork works as intended will be important for familiarizing yourself on how VRGDAs are initially configured.
