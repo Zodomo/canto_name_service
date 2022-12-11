@@ -175,3 +175,87 @@ actions such as burning or transferring. Could be wrong here, and maybe it adds 
     }
 ```
 (Also you can try considering uint40 for expirations, see [example](https://twitter.com/PaulRBerg/status/1591832937179250693))
+
+&nbsp;
+
+# `CantoNameService.sol`
+
+## Design Flaws
+
+## Bugs
+
+1) Should burn logic update the VRGDA pricing? (i.e. decrementing `tokenCounts[_length].current--;`)
+
+
+
+## Footguns
+
+1) IIRC, `testFail*` in `CantoNameService.t.sol` can have mis-leading passes. You should actually use `vm.expectRevert("<revert string>")` in your tests to guarantee that tests are reverting on a specific condition.
+
+2) I think you should move some of your `require` statements to `modifier` instead should improve readability & consistency. For example, defining & using a modifier like:
+
+```
+modifier approvedOrOwner(address caller, uint256 tokenId) {
+    // Require owner/approved/operator
+    require(_isApprovedOrOwner(caller, tokenId), "CantoNameService::delegateNameWithPrecision::NOT_APPROVED");
+
+    _;
+}
+```
+
+## Gas findings
+
+```solidity
+    // Return string length, properly counts all Unicode characters
+    function stringLength(string memory _string) public pure returns (uint256) {
+        uint256 charCount; // Number of characters in _string regardless of char byte length
+
+        // SAUCEPOINT: by default variables are init'd to 0.
+        // explicitly setting to zero takes more gas IIRC
+        uint256 charByteCount; // Number of bytes in char (a = 1, € = 3)
+        uint256 byteLength = bytes(_string).length; // Total length of string in raw bytes
+
+        // Determine how many bytes each character in string has
+        // SAUCEPOINT: no need to set charCount = 0 again, its already set
+        for (charCount; charByteCount < byteLength;) {
+            bytes1 b = bytes(_string)[charByteCount]; // if tree uses first byte to determine length
+
+            // SAUCEPOINT: character counter shouldnt overflow
+            unchecked {
+                if (b < 0x80) {
+                    charByteCount += 1;
+                } else if (b < 0xE0) {
+                    charByteCount += 2;
+                } else if (b < 0xF0) {
+                    charByteCount += 3;
+                } else if (b < 0xF8) {
+                    charByteCount += 4;
+                } else if (b < 0xFC) {
+                    charByteCount += 5;
+                } else {
+                    charByteCount += 6;
+                }
+
+                // SAUCEPOINT: characters wont overflow, so can be in unchecked
+                ++charCount;
+            }
+        }
+        return charCount;
+    }
+```
+Optimized the for-loop a bit. See [meme](https://twitter.com/saucepoint/status/1544525857733091329?s=20&t=Sci7OxZGkG2767t_d0YLcA)
+
+**See other for-loops (i.e. some of the vrgda() functions). You can probably add `unchecked { ++i; }` to those loops**
+
+&nbsp;
+
+In general, one gas optimization trick is to find all `++` incrementers, and reasonably determine if they can overflow past `2**256-1` (max-uint). See `_incrementCounts(uint256 _length)` -- you can probably add `unchecked { }` blocks to your increments!
+
+```solidity
+    // Return address' primary name
+    function getPrimary(address _target) public view returns (string memory) {
+        uint256 tokenId = primaryName[_target];
+        return nameRegistry[tokenId].name;
+    }
+```
+`public` functions not used by the contract itself, should be `external`. Would check for other functions besides this one.
