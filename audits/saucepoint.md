@@ -16,13 +16,13 @@ The purpose of the audit is a peer review of the code. The primary focus will be
 
 ### Files in Scope
 
-[Allowlist.sol](src/Allowlist.sol)
+[Allowlist.sol](../src/Allowlist.sol)
 
-[CantoNameService.sol](src/CantoNameService.sol)
+[CantoNameService.sol](../src/CantoNameService.sol)
 
-[ERC721.sol](src/ERC721.sol)
+[ERC721.sol](../src/ERC721.sol)
 
-[LinearVRGDA.sol](src/LinearVRGDA.sol)
+[LinearVRGDA.sol](../src/LinearVRGDA.sol)
 
 
 ---
@@ -79,6 +79,7 @@ The purpose of the audit is a peer review of the code. The primary focus will be
     ...
 ```
 1) Is the `computeDomainSeparator()'s "CAPTCHA"` supposed to be mismatched against `_verify()'s "CAPTCHA()"`?
+    * You should test the signatures using `vm.sign()`[https://book.getfoundry.sh/cheatcodes/sign] (or [tutorial](https://book.getfoundry.sh/tutorials/testing-eip712))
 
 ## Footguns
 
@@ -105,3 +106,72 @@ reservationExpiry[msg.sender] = block.timestamp + 365 days;
 emit Reserve(msg.sender, _tokenId, reservationExpiry[msg.sender]);
 ```
 3) I would see if using a local variable `uint256 expiry = block.timestamp + 365 days;` would save gas instead of doing a storage read.
+
+# `ERC721.sol`
+
+## Design Flaws
+1) My biggest gripe with the contract is it is seemingly a copy+paste of OZ's contracts with some slight modifications. For me, I found myself skimming over some parts since it seemed like standard ERC721 code. My suggestion here would be to inherit from OZ or solmate, and then override the functions that you need to modify. This would make the contract easier to understand & audit. Example of adding pre/post mint calls:
+
+```solidity
+
+import {ERC721} from "solmate/tokens/ERC721.sol";
+
+contract CNSToken is ERC721 {
+    constructor() ERC721("Canto Name", "CNS") {}
+
+    function _mint(address to, uint256 tokenId) internal override {
+        // pre mint logic
+        _beforeTokenTransfer(tokenId);
+        
+        // mint logic handled by OZ (or solmate)
+        super._mint(to, tokenId);
+        
+        // post mint logic
+        _afterTokenTransfer(tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override {
+        // pre burn logic
+        _beforeTokenTransfer(tokenId);
+        
+        // burn logic handled by OZ (or solmate)
+        super._burn(tokenId);
+        
+        // post burn logic
+        _burnData(tokenId);
+    }
+}
+```
+
+## Bugs
+
+## Footguns
+```
+    function _beforeTokenTransfer(uint256 tokenId) internal view {
+        require(nameRegistry[tokenId].delegationExpiry < block.timestamp, "ERC721::_beforeTokenTransfer::TOKEN_DELEGATED");
+    }
+```
+1) This requirement is a bit strange to me. If I delegate the name (token) to an address, I'm not seeing the business case for blocking 
+actions such as burning or transferring. Could be wrong here, and maybe it adds a level of protection for the owner (it acts as a reminder that its being delegated at the moment)
+
+## Gas findings
+
+```solidity
+    // Name data / URI(?) struct
+    struct Name {
+        string name;
+        uint256 expiry;
+        address delegate;
+        uint256 delegationExpiry;
+    }
+```
+1) You should pack this better. Might be worth entertaining a fixed name length. You could limit names to a max of 64 characters by using `bytes32[2]`, but probably adds some complexity on the client side. Example of better (but not perfect) packing:
+```
+    struct Name {
+        uint256 expiry;
+        uint256 delegationExpiry;
+        address delegate;
+        string name;
+    }
+```
+(Also you can try considering uint40 for expirations, see [example](https://twitter.com/PaulRBerg/status/1591832937179250693))
