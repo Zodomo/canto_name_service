@@ -203,6 +203,8 @@ modifier approvedOrOwner(address caller, uint256 tokenId) {
 }
 ```
 
+3) Both delegation (and extensions) occur via 2 patterns: term or precision. I can delegate my name for 2 terms or some precise timestamp. I'm willing to argue that delegate-by-term is unnecessary functionality because (1) delegating with a granualrity of years will probably won't be very popular and (2) delegating-by-year can be handled by delegate-by-precision, the client (web app) will handle the math. Therefore, supporting delegate-by-term adds complexity (& deployment costs) when its functionality can be captured by delegate-by-precision. 
+
 ## Gas findings
 
 ```solidity
@@ -259,3 +261,12 @@ In general, one gas optimization trick is to find all `++` incrementers, and rea
     }
 ```
 `public` functions not used by the contract itself, should be `external`. Would check for other functions besides this one.
+
+
+```solidity
+    uint256 newDelegationExpiry = 
+        block.timestamp + 
+        (nameRegistry[_tokenId].delegationExpiry - block.timestamp) + 
+        (_term * 365 days);
+```
+There's unnecessary math here which increases gas utilization. The current math (above) is doing: `A + B - A + C` (`A - A` cancels out anyway). You just need to add `term * 365` to the existing expiration.
