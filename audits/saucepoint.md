@@ -30,9 +30,9 @@ The purpose of the audit is a peer review of the code. The primary focus will be
 # `Allowlist.sol`
 
 ## Design Flaws
-1) If `Allowlist's` purpose is to remove programmtic bots from interacting with the contracts, then I'm unsure if it solves the problem. If this is not the case, ignore this finding.
-    - The contract is forcing an externally owned account (EOA) to sign a message and then submit it to the contract for verification. This process can be programmtically done by a bot. More so, the CAPTCHA/signature mechanism will actually slow down humans from interacting with the contract via their clients (web browser + wallet).
-    - Bot preventation should be done with an admin signature. User solves captcha in the browser, user recieves an admin signature to provide to their contract calls. Contract then verifies that the admin signature is valid and not forged. The trade off is that the admin signatures remove trustlessness / permissionlessness from the contract
+1) If `Allowlist's` purpose is to remove programmtic bots from interacting with the contracts, then I'm unsure if it is successful at stopping bots. If this is not the case, ignore this finding.
+    - The contract requires an externally owned account (EOA) to sign a message and then submit it to the contract for verification. This bots can programmatically sign messages too. More so, the CAPTCHA/signature mechanism will slow down humans since they need to manually click buttons to sign a message.
+    - Bot preventation should be done with an admin signature. User solves captcha in the browser, user recieves an admin signature to provide to the contract. Contract then verifies that the admin signature is valid and not forged. The trade off is that the admin signatures remove trustlessness / permissionlessness interaction with the contract
 
 &nbsp;
 
@@ -79,7 +79,7 @@ The purpose of the audit is a peer review of the code. The primary focus will be
     ...
 ```
 1) Is the `computeDomainSeparator()'s "CAPTCHA"` supposed to be mismatched against `_verify()'s "CAPTCHA()"`?
-    * You should test the signatures using `vm.sign()`[https://book.getfoundry.sh/cheatcodes/sign] (or [tutorial](https://book.getfoundry.sh/tutorials/testing-eip712))
+    * You should test the signatures using [`vm.sign()`](https://book.getfoundry.sh/cheatcodes/sign) (or [tutorial](https://book.getfoundry.sh/tutorials/testing-eip712))
 
 ## Footguns
 
@@ -106,6 +106,8 @@ reservationExpiry[msg.sender] = block.timestamp + 365 days;
 emit Reserve(msg.sender, _tokenId, reservationExpiry[msg.sender]);
 ```
 3) I would see if using a local variable `uint256 expiry = block.timestamp + 365 days;` would save gas instead of doing a storage read.
+
+&nbsp;
 
 # `ERC721.sol`
 
@@ -145,6 +147,8 @@ contract CNSToken is ERC721 {
 
 ## Bugs
 
+N/A
+
 ## Footguns
 ```
     function _beforeTokenTransfer(uint256 tokenId) internal view {
@@ -165,7 +169,7 @@ actions such as burning or transferring. Could be wrong here, and maybe it adds 
         uint256 delegationExpiry;
     }
 ```
-1) You should pack this better. Might be worth entertaining a fixed name length. You could limit names to a max of 64 characters by using `bytes32[2]`, but probably adds some complexity on the client side. Example of better (but not perfect) packing:
+1) You should pack this better. Might be worth entertaining a fixed name length. You could limit names to a max of 64 bytes by using `bytes32[2]`, but probably adds some complexity on the client side. Example of better (but not perfect) packing:
 ```
     struct Name {
         uint256 expiry;
@@ -182,17 +186,17 @@ actions such as burning or transferring. Could be wrong here, and maybe it adds 
 
 ## Design Flaws
 
+N/A
+
 ## Bugs
 
 1) Should burn logic update the VRGDA pricing? (i.e. decrementing `tokenCounts[_length].current--;`)
 
-
-
 ## Footguns
 
-1) IIRC, `testFail*` in `CantoNameService.t.sol` can have mis-leading passes. You should actually use `vm.expectRevert("<revert string>")` in your tests to guarantee that tests are reverting on a specific condition.
+1) IIRC, `testFail*` in `CantoNameService.t.sol` can have mis-leading test-pass. You should actually use `vm.expectRevert("<revert string>")` in your tests to guarantee that tests are reverting on a specific condition.
 
-2) I think you should move some of your `require` statements to `modifier` instead should improve readability & consistency. For example, defining & using a modifier like:
+&nbsp;
 
 ```
 modifier approvedOrOwner(address caller, uint256 tokenId) {
@@ -202,6 +206,9 @@ modifier approvedOrOwner(address caller, uint256 tokenId) {
     _;
 }
 ```
+2) I think you should move some of your `require` statements to `modifier` instead should improve readability & consistency
+
+&nbsp;
 
 3) Both delegation (and extensions) occur via 2 patterns: term or precision. I can delegate my name for 2 terms or some precise timestamp. I'm willing to argue that delegate-by-term is unnecessary functionality because (1) delegating with a granualrity of years will probably won't be very popular and (2) delegating-by-year can be handled by delegate-by-precision, the client (web app) will handle the math. Therefore, supporting delegate-by-term adds complexity (& deployment costs) when its functionality can be captured by delegate-by-precision. 
 
@@ -249,9 +256,9 @@ Optimized the for-loop a bit. See [meme](https://twitter.com/saucepoint/status/1
 
 **See other for-loops (i.e. some of the vrgda() functions). You can probably add `unchecked { ++i; }` to those loops**
 
-&nbsp;
-
 In general, one gas optimization trick is to find all `++` incrementers, and reasonably determine if they can overflow past `2**256-1` (max-uint). See `_incrementCounts(uint256 _length)` -- you can probably add `unchecked { }` blocks to your increments!
+
+&nbsp;
 
 ```solidity
     // Return address' primary name
@@ -262,6 +269,7 @@ In general, one gas optimization trick is to find all `++` incrementers, and rea
 ```
 `public` functions not used by the contract itself, should be `external`. Would check for other functions besides this one.
 
+&nbsp;
 
 ```solidity
     uint256 newDelegationExpiry = 
@@ -269,7 +277,7 @@ In general, one gas optimization trick is to find all `++` incrementers, and rea
         (nameRegistry[_tokenId].delegationExpiry - block.timestamp) + 
         (_term * 365 days);
 ```
-There's unnecessary math here which increases gas utilization. The current math (above) is doing: `A + B - A + C` (`A - A` cancels out anyway). You just need to add `term * 365` to the existing expiration.
+There's unnecessary math here which increases gas utilization. The current math is doing: `A + B - A + C` (where `A - A` cancels out anyway). You just need to add `term * 365` to the existing expiration.
 
 &nbsp;
 
@@ -277,8 +285,28 @@ There's unnecessary math here which increases gas utilization. The current math 
 
 ## Design Flaws
 
-I believe you're aware of this, but `vrgdaTest()` will be removed and you'll need a way for populating `LinearVRGDA.initData` (state variable). This can maybe be done with function arguments, but might be error prone. You could also consider hard-coding the VRGDA parameters in the constructor. In the case of setting the values on-deploy, you won't need the `initData` state.
+I believe you're aware of this, but `vrgdaTest()` will be removed and you'll need a way for populating `LinearVRGDA.initData` (state variable). This can maybe be done with function arguments, but might be error prone.
+
+You could also consider hard-coding the VRGDA parameters in the constructor. In the case of setting the values on-deploy, you won't need the `initData` state.
+
+Once you determine how you want to initialize multiple VRGDAs, I would revisit your `batch` functionality, since it seems a bit overkill.
 
 ## Footguns
 
 The VRGDA implementation looks *okay* at first glance, but I think it would be best if you had explicit tests. You can reference the original VRGDA for values to use and assert. IIRC the original VRGDA implementation represents days as `wad` (`10 days = 10e18`), and the `int256` can be tricky at times. Testing that your fork works as intended will be important for familiarizing yourself on how VRGDAs are initially configured.
+
+## Gas findings
+
+If all VRGDAs will be initialized at the same time, each VRGDA does not need to store `startTime`. Have one state-variable `startTime` which gets set when the VRGDAs are initialized. Again, this suggestion is only valid if *all* VRGDAs are *atomically* started at the same exact time.
+
+&nbsp;
+
+# `CantoNameService.t.sol`
+
+(Bonus findings), I know this is still work in progress, but there's a few things you'll want to take care of before the deployment:
+
+1) asserting expirations after minting / delegating
+
+2) asserting metadata changes (delegations / primary) after transfers / burns
+
+3) Allowlist / Reservations. Add tests to verify that the mechanism works as intended for reserving the ability to mint. Currently doesnt seem like the allowlist is blocking mints?
