@@ -155,6 +155,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
 
     // Prepare initialization data for each VRGDA
     // Can only be called before batch initialization
+    /// @notice prepares VRGDA for calculations
+    /// @param _VRGDA VRGDA ID - corresponds to string length
     function vrgdaPrep(uint256 _VRGDA, int256 _targetPrice, int256 _priceDecayPercent, int256 _perTimeUnit)
         public
         onlyOwner
@@ -308,7 +310,11 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         safeRegister(_to, _name, _term, "");
     }
 
-    // Register name to ERC721-compatible destination
+    /// @notice registers name
+    /// @param _to address to register name to
+    /// @param _name name to register
+    /// @param _term count of years to register _name for
+    /// @param _data additional data to pass to _checkOnERC721Received
     function safeRegister(address _to, string memory _name, uint256 _term, bytes memory _data) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
@@ -339,7 +345,10 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         }
     }
 
-    // Recipient checking is not processed with this call
+    /// @notice registers name without checking if the recipient can receive ERC-721 tokens
+    /// @param _to address to register name to
+    /// @param _name name to register
+    /// @param _term count of years to register _name for
     function unsafeRegister(address _to, string memory _name, uint256 _term) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
@@ -374,14 +383,16 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 BURN LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // burnName function call using name
+    /// @notice burns NFT
+    /// @param _name burn this name's registration
     function burnName(string memory _name) public {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         burnName(tokenId);
     }
 
-    // Name is only burnable if undelegated
+    /// @notice burns NFT
+    /// @param _tokenId burn this tokenId
     function burnName(uint256 _tokenId) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::burnName::NOT_APPROVED");
@@ -394,7 +405,10 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 RENEW LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Internal renewal logic
+    /// @notice renews name registration for a given term
+    /// @param _tokenId renew registration for this tokenId
+    /// @param _newExpiry expiration timestamp
+    /// @dev Anyone can renew for anyone else
     function _renew(uint256 _tokenId, uint256 _newExpiry) internal {
         // Name must not be expired to be renewed
         require(nameRegistry[_tokenId].expiry >= block.timestamp, "CantoNameService::_renew::NAME_EXPIRED");
@@ -405,16 +419,19 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         emit Renew(ERC721.ownerOf(_tokenId), _tokenId, _newExpiry);
     }
 
-    // Pass call with string through to primary logic
+    /// @notice renews name registration for a given term
+    /// @param _name renew registration for this tokenId
+    /// @param _term count of years to extend the delegation
     function renewName(string memory _name, uint256 _term) public payable {
         // Generate name ID
         uint256 tokenId = nameToID(_name);
         renewName(tokenId, _term);
     }
 
-    // Primary renewal function that calls all renewal logic
-    // Payment must be sufficient before renewal logic executes
-    // Anyone can renew for anyone else
+    /// @notice renews name registration for a given term
+    /// @param _tokenId renew registration for this tokenId
+    /// @param _term count of years to extend the delegation
+    /// @dev Anyone can renew for anyone else
     function renewName(uint256 _tokenId, uint256 _term) public payable {
         // Retrieve name string
         string memory name = nameRegistry[_tokenId].name;
@@ -423,7 +440,7 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         // Use name character length to calculate current price
         uint256 price = priceName(length);
         // Calculate new expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
+
         uint256 newExpiry = nameRegistry[_tokenId].expiry + (_term * 365 days);
 
         // Require msg.value meets or exceeds renewal cost
@@ -442,14 +459,15 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 PRIMARY NAME LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Pass call with string through to primary logic
+    /// @notice sets the primary name of a given name
+    /// @param _name name to set the primary address
     function setPrimary(string memory _name) public {
         uint256 tokenId = nameToID(_name);
         setPrimary(tokenId);
     }
 
-    // Set primary name
-    // Allow owner to call only if undelegated
+    /// @notice sets the primary name of a given tokenId
+    /// @param _tokenId tokenId to set the primary address
     function setPrimary(uint256 _tokenId) public {
         // Only owner or valid delegate can call
         require(
@@ -468,7 +486,8 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         emit Primary(msg.sender, _tokenId);
     }
 
-    // Return address' primary name
+    /// @notice return the primary name of a given address
+    /// @param _target return the primary name of this address
     function getPrimary(address _target) public view returns (string memory) {
         uint256 tokenId = primaryName[_target];
         return nameRegistry[tokenId].name;
@@ -478,11 +497,14 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 DELEGATION LOGIC
     //////////////////////////////////////////////////////////////*/
 
-    // Internal delegation logic
-    // _expiry requires exact timestamp
+    /// @notice delegate registered name to other address
+    /// @param _tokenId tokenId to delegate
+    /// @param delegate_ address to delegate the registered name to
+    /// @param _expiry expiration timestamp
     function _delegate(uint256 _tokenId, address delegate_, uint256 _expiry) internal {
         // Require delegation term not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _expiry, "CantoNameService::_delegate::OWNERSHIP_EXPIRY");
+
         // Require not already delegated
         require(
             nameRegistry[_tokenId].delegationExpiry < block.timestamp, "CantoNameService::_delegate::DELEGATION_ACTIVE"
@@ -502,14 +524,20 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         emit Delegate(delegate_, _tokenId, _expiry);
     }
 
-    // Pass call with string through to primary logic
+    /// @notice delegate registered name to other address
+    /// @param _name name to delegate to another address
+    /// @param delegate_ address to delegate the registered name to
+    /// @param _term count of years to extend the delegation
     function delegateName(string memory _name, address delegate_, uint256 _term) public {
         // Generate name ID
         uint256 tokenId = nameToID(_name);
         delegateName(tokenId, delegate_, _term);
     }
 
-    // Allow owner, approved, or operator to delegate a name for a specific term in years
+    /// @notice delegate registered name to other address
+    /// @param _tokenId tokenId to delegate
+    /// @param delegate_ address to delegate the registered name to
+    /// @param _term count of years to extend the delegation
     function delegateName(uint256 _tokenId, address delegate_, uint256 _term) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateName::NOT_APPROVED");
@@ -521,13 +549,19 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         _delegate(_tokenId, delegate_, delegationExpiry);
     }
 
-    // Pass call with string through to primary logic
+    /// @notice delegate registered name to other address
+    /// @param _name name to delegate to another address
+    /// @param delegate_ address to delegate the registered name to
+    /// @param _expiry expiration timestamp
     function delegateNameWithPrecision(string memory _name, address delegate_, uint256 _expiry) public {
         uint256 tokenId = nameToID(_name);
         delegateNameWithPrecision(tokenId, delegate_, _expiry);
     }
 
-    // Process delegation with precise expiry timestamp if yearly term is too imprecise
+    /// @notice delegate registered name to other address
+    /// @param _tokenId tokenId to delegate
+    /// @param delegate_ address to delegate the registered name to
+    /// @param _expiry expiration timestamp
     function delegateNameWithPrecision(uint256 _tokenId, address delegate_, uint256 _expiry) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateNameWithPrecision::NOT_APPROVED");
@@ -535,27 +569,35 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         _delegate(_tokenId, delegate_, _expiry);
     }
 
-    // Internal delegation logic
+    /// @notice extend delegation expiry to other address
+    /// @param _tokenId tokenId to extend the delegation
+    /// @param _newExpiry new expiration timestamp
     function _extend(uint256 _tokenId, uint256 _newExpiry) internal {
         // Require new delegation expiry not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _newExpiry, "CantoNameService::_extend::OWNERSHIP_EXPIRY");
-        // Require existing delegation to extend
-        require(
-            nameRegistry[_tokenId].delegationExpiry >= block.timestamp, "CantoNameService::_extend::DELEGATION_INACTIVE"
-        );
+
+        uint256 delegationExpiry = nameRegistry[_tokenId].delegationExpiry;
+
+        require(_newExpiry > delegationExpiry, "CantoNameService::_extend::NEW_EXPIRY_DOES_NOT_EXTEND");
+
+        require(delegationExpiry >= block.timestamp, "CantoNameService::_extend::DELEGATION_INACTIVE");
 
         nameRegistry[_tokenId].delegationExpiry = _newExpiry;
 
         emit Extend(nameRegistry[_tokenId].delegate, _tokenId, _newExpiry);
     }
 
-    // Pass call with string through to primary logic
+    /// @notice allow token holder to extend delegation to other address
+    /// @param _name name to extend the delegation for
+    /// @param _term count of years to extend the delegation
     function extendDelegation(string memory _name, uint256 _term) public {
         uint256 tokenId = nameToID(_name);
         extendDelegation(tokenId, _term);
     }
 
-    // Extend name delegation
+    /// @notice allow token holder to extend delegation to other address
+    /// @param _tokenId tokenId to extend the delegation
+    /// @param _term count of years to extend the delegation
     function extendDelegation(uint256 _tokenId, uint256 _term) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
@@ -568,21 +610,20 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
         _extend(_tokenId, newDelegationExpiry);
     }
 
-    // Pass call with string through to primary logic
-    function extendDelegationWithPrecision(string memory _name, uint256 _newExpiry) public {
+    /// @notice allow token holder to extend delegation expiry
+    /// @param _name name to extend the delegation for
+    /// @param _newExpiry new expiration timestamp
+    function extendDelegationWithPrecision(string memory _name, uint256 _newExpiry) external {
         uint256 tokenId = nameToID(_name);
         extendDelegationWithPrecision(tokenId, _newExpiry);
     }
 
+    /// @notice allow token holder to extend delegation to other address
+    /// @param _tokenId tokenId to extend the delegation
+    /// @param _newExpiry new expiration timestamp
     function extendDelegationWithPrecision(uint256 _tokenId, uint256 _newExpiry) public {
-        // Require owner/approved/operator
         require(
             _isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegationWithPrecision::NOT_APPROVED"
-        );
-
-        require(
-            _newExpiry > nameRegistry[_tokenId].delegationExpiry,
-            "CantoNameService::extendDelegationWithPrecision::EXPIRY_TOO_SOON"
         );
 
         _extend(_tokenId, _newExpiry);
@@ -592,7 +633,6 @@ contract CantoNameService is ERC721("Canto Name Service", "CNS"), LinearVRGDA, O
                 PAYMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // Payment handling functions if we need them
     function withdraw() public onlyOwner {
         (bool success,) = msg.sender.call{value: address(this).balance}("");
         require(success, "CantoNameService::withdraw::WITHDRAW_FAILED");
