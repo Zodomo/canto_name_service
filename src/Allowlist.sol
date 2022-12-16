@@ -48,6 +48,8 @@ contract Allowlist is Ownable {
     event Verify(address indexed user);
     // Log reservations
     event Reserve(address indexed reserver, uint256 indexed tokenId, uint256 indexed expiry);
+    // Log releases
+    event Release(address indexed reserver, uint256 indexed tokenId);
 
     /*//////////////////////////////////////////////////////////////
                 GENERAL FUNCTIONS
@@ -87,6 +89,8 @@ contract Allowlist is Ownable {
         delete nameReserver[_tokenId];
         delete nameReservation[tx.origin];
         delete reservationExpiry[tx.origin];
+
+        emit Release(tx.origin, _tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -206,6 +210,8 @@ contract Allowlist is Ownable {
         // If another name has been reserved, clear the old name's reserver before processing new name
         if (nameReservation[msg.sender] != 0) {
             nameReserver[nameReservation[msg.sender]] = address(0);
+            
+            emit Release(msg.sender, nameReservation[msg.sender]);
         }
         
         // Set new name reservation data
