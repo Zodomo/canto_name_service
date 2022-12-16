@@ -86,10 +86,10 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
 
     // Name data / URI(?) struct
     struct Name {
-        string name;
-        uint256 expiry;
+        uint40 expiry;
+        uint40 delegationExpiry;
         address delegate;
-        uint256 delegationExpiry;
+        string name;
     }
 
     // Name data storage / registry
@@ -376,7 +376,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _name name to register
     /// @param _tokenId tokenId to register name to
     /// @param _expiry expiry of name registration
-    function _register(string memory _name, uint256 _tokenId, uint256 _expiry) internal {
+    function _register(string memory _name, uint256 _tokenId, uint40 _expiry) internal {
         if (isReserved(_tokenId)) {
             // Consume reservation, validity will be checked during burn
             burnReservationById(_tokenId);
@@ -393,14 +393,14 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _to address to register name to
     /// @param _name name to register
     /// @param _term count of years to register _name for
-    function safeRegister(address _to, string memory _name, uint256 _term) external payable {
+    function safeRegister(address _to, string memory _name, uint40 _term) external payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
-        uint256 expiry = block.timestamp + (_term * 365 days);
+        uint40 expiry = uint40(block.timestamp) + (_term * 365 days);
 
         // Require valid name
         require(length > 0, "CantoNameService::safeRegister::MISSING_NAME");
@@ -428,14 +428,14 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _to address to register name to
     /// @param _name name to register
     /// @param _term count of years to register _name for
-    function unsafeRegister(address _to, string memory _name, uint256 _term) external payable {
+    function unsafeRegister(address _to, string memory _name, uint40 _term) external payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
-        uint256 expiry = block.timestamp + (_term * 365 days);
+        uint40 expiry = uint40(block.timestamp) + (_term * 365 days);
 
         // Require valid name
         require(length > 0, "CantoNameService::unsafeRegister::MISSING_NAME");
@@ -493,7 +493,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _tokenId renew registration for this tokenId
     /// @param _newExpiry expiration timestamp
     /// @dev Anyone can renew for anyone else
-    function _renewByExpiry(uint256 _tokenId, uint256 _newExpiry) internal {
+    function _renewByExpiry(uint256 _tokenId, uint40 _newExpiry) internal {
         // Name must not be expired to be renewed
         require(nameRegistry[_tokenId].expiry >= block.timestamp, "CantoNameService::_renew::NAME_EXPIRED");
 
@@ -506,7 +506,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice renews name registration for a given term
     /// @param _name renew registration for this tokenId
     /// @param _term count of years to extend the delegation
-    function renewName(string memory _name, uint256 _term) external payable {
+    function renewName(string memory _name, uint40 _term) external payable {
         renewNameById(nameToID(_name), _term);
     }
 
@@ -514,7 +514,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _tokenId renew registration for this tokenId
     /// @param _term count of years to extend the delegation
     /// @dev Anyone can renew for anyone else
-    function renewNameById(uint256 _tokenId, uint256 _term) public payable {
+    function renewNameById(uint256 _tokenId, uint40 _term) public payable {
         // Retrieve name string
         string memory name = nameRegistry[_tokenId].name;
         // Calculate name string character length
@@ -523,7 +523,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         uint256 price = priceName(length);
         // Calculate new expiry timestamp
 
-        uint256 newExpiry = nameRegistry[_tokenId].expiry + (_term * 365 days);
+        uint40 newExpiry = nameRegistry[_tokenId].expiry + (_term * 365 days);
 
         // Require msg.value meets or exceeds renewal cost
         require(msg.value >= (price * _term), "CantoNameService::renewName::INSUFFICIENT_PAYMENT");
@@ -583,7 +583,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _tokenId tokenId to delegate
     /// @param delegate_ address to delegate the registered name to
     /// @param _expiry expiration timestamp
-    function _delegate(uint256 _tokenId, address delegate_, uint256 _expiry) internal {
+    function _delegate(uint256 _tokenId, address delegate_, uint40 _expiry) internal {
         // Require delegation term not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _expiry, "CantoNameService::_delegate::OWNERSHIP_EXPIRY");
 
@@ -610,7 +610,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _name name to delegate to another address
     /// @param delegate_ address to delegate the registered name to
     /// @param _term count of years to extend the delegation
-    function delegateName(string memory _name, address delegate_, uint256 _term) public {
+    function delegateName(string memory _name, address delegate_, uint40 _term) public {
         delegateNameById(nameToID(_name), delegate_, _term);
     }
 
@@ -618,12 +618,12 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _tokenId tokenId to delegate
     /// @param delegate_ address to delegate the registered name to
     /// @param _term count of years to extend the delegation
-    function delegateNameById(uint256 _tokenId, address delegate_, uint256 _term) public {
+    function delegateNameById(uint256 _tokenId, address delegate_, uint40 _term) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateName::NOT_APPROVED");
 
         // Calculate expiry timestamp
-        uint256 delegationExpiry = block.timestamp + (_term * 365 days);
+        uint40 delegationExpiry = uint40(block.timestamp) + (_term * 365 days);
 
         _delegate(_tokenId, delegate_, delegationExpiry);
     }
@@ -632,7 +632,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _name name to delegate to another address
     /// @param delegate_ address to delegate the registered name to
     /// @param _expiry expiration timestamp
-    function delegateNameWithPrecision(string memory _name, address delegate_, uint256 _expiry) public {
+    function delegateNameWithPrecision(string memory _name, address delegate_, uint40 _expiry) public {
         delegateNameWithPrecisionById(nameToID(_name), delegate_, _expiry);
     }
 
@@ -640,7 +640,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _tokenId tokenId to delegate
     /// @param delegate_ address to delegate the registered name to
     /// @param _expiry expiration timestamp
-    function delegateNameWithPrecisionById(uint256 _tokenId, address delegate_, uint256 _expiry) public {
+    function delegateNameWithPrecisionById(uint256 _tokenId, address delegate_, uint40 _expiry) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateNameWithPrecision::NOT_APPROVED");
 
@@ -650,7 +650,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice extend delegation expiry to other address
     /// @param _tokenId tokenId to extend the delegation
     /// @param _newExpiry new expiration timestamp
-    function _extend(uint256 _tokenId, uint256 _newExpiry) internal {
+    function _extend(uint256 _tokenId, uint40 _newExpiry) internal {
         // Require new delegation expiry not meet or exceed owner's expiry
         require(nameRegistry[_tokenId].expiry > _newExpiry, "CantoNameService::_extend::OWNERSHIP_EXPIRY");
 
@@ -668,20 +668,20 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice allow token holder to extend delegation to other address
     /// @param _name name to extend the delegation for
     /// @param _term count of years to extend the delegation
-    function extendDelegation(string memory _name, uint256 _term) public {
+    function extendDelegation(string memory _name, uint40 _term) public {
         extendDelegationById(nameToID(_name), _term);
     }
 
     /// @notice allow token holder to extend delegation to other address
     /// @param _tokenId tokenId to extend the delegation
     /// @param _term count of years to extend the delegation
-    function extendDelegationById(uint256 _tokenId, uint256 _term) public {
+    function extendDelegationById(uint256 _tokenId, uint40 _term) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
 
         // Calculate expiry timestamp
-        uint256 newDelegationExpiry =
-            block.timestamp + (nameRegistry[_tokenId].delegationExpiry - block.timestamp) + (_term * 365 days);
+        uint40 newDelegationExpiry =
+            uint40(block.timestamp) + (nameRegistry[_tokenId].delegationExpiry - uint40(block.timestamp)) + (_term * 365 days);
 
         _extend(_tokenId, newDelegationExpiry);
     }
@@ -689,14 +689,14 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice allow token holder to extend delegation expiry with timestamp precision
     /// @param _name name to extend the delegation for
     /// @param _newExpiry new expiration timestamp
-    function extendDelegationWithPrecision(string memory _name, uint256 _newExpiry) external {
+    function extendDelegationWithPrecision(string memory _name, uint40 _newExpiry) external {
         extendDelegationWithPrecisionById(nameToID(_name), _newExpiry);
     }
 
     /// @notice allow token holder to extend delegation to other address with timestamp precision
     /// @param _tokenId tokenId to extend the delegation
     /// @param _newExpiry new expiration timestamp
-    function extendDelegationWithPrecisionById(uint256 _tokenId, uint256 _newExpiry) public {
+    function extendDelegationWithPrecisionById(uint256 _tokenId, uint40 _newExpiry) public {
         require(
             _isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegationWithPrecision::NOT_APPROVED"
         );
