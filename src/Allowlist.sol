@@ -5,15 +5,6 @@ import "openzeppelin-contracts/access/Ownable.sol";
 
 // Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
 contract Allowlist is Ownable {
-    
-    /*//////////////////////////////////////////////////////////////
-                EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    // Log verified users
-    event Verify(address indexed user);
-    // Log reservations
-    event Reserve(address indexed reserver, uint256 indexed tokenId, uint256 indexed expiry);
 
     /*//////////////////////////////////////////////////////////////
                 MODIFIERS
@@ -35,6 +26,9 @@ contract Allowlist is Ownable {
                 VERIFICATION/ALLOWLIST STORAGE
     //////////////////////////////////////////////////////////////*/
 
+    // Cutoff timestamp
+    uint256 cutoff;
+
     // User CAPTCHA verification
     mapping(address => bool) internal hasPassedCAPTCHA;
     // Tracks whether user has used their one reservation
@@ -46,8 +40,14 @@ contract Allowlist is Ownable {
     // Stores reservation expiry timestamp, currently 365 days after reservation
     mapping(address => uint256) public reservationExpiry;
 
-    // Cutoff timestamp
-    uint256 cutoff;
+    /*//////////////////////////////////////////////////////////////
+                EVENTS
+    //////////////////////////////////////////////////////////////*/
+
+    // Log verified users
+    event Verify(address indexed user);
+    // Log reservations
+    event Reserve(address indexed reserver, uint256 indexed tokenId, uint256 indexed expiry);
 
     /*//////////////////////////////////////////////////////////////
                 GENERAL FUNCTIONS
@@ -109,7 +109,7 @@ contract Allowlist is Ownable {
         return keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256("CAPTCHA"),
+                keccak256("CAPTCHA()"),
                 keccak256("1"),
                 block.chainid,
                 address(this)
@@ -121,6 +121,8 @@ contract Allowlist is Ownable {
                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
+    // _cutoff is the amount of time the Allowlist should be open for
+    // It is not an exact timestamp. It is added to block.timestamp
     constructor(uint256 _cutoff) {
         transferOwnership(msg.sender);
         INITIAL_CHAIN_ID = block.chainid;
@@ -198,17 +200,22 @@ contract Allowlist is Ownable {
         // Block redundant reservations
         require(nameReserver[_tokenId] != msg.sender, "Allowlist::reserveName::RESERVATION_PROCESSED");
 
+        // Set reservation expiry
+        uint256 expiry = block.timestamp + 365 days;
+
         // If another name has been reserved, clear the old name's reserver before processing new name
         if (nameReservation[msg.sender] != 0) {
             nameReserver[nameReservation[msg.sender]] = address(0);
         }
         
-        // Set new name reservation
+        // Set new name reservation data
         nameReservation[msg.sender] = _tokenId;
         nameReserver[_tokenId] = msg.sender;
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
-        reservationExpiry[msg.sender] = block.timestamp + 365 days;
+        // Expiry calculation can be unchecked as block.timestamp cannot force an overflow
+        unchecked {
+            reservationExpiry[msg.sender] = expiry;
+        }
 
-        emit Reserve(msg.sender, _tokenId, reservationExpiry[msg.sender]);
+        emit Reserve(msg.sender, _tokenId, expiry);
     }
 }
