@@ -126,25 +126,32 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _string String to check
     function stringLength(string memory _string) public pure returns (uint256) {
         uint256 charCount; // Number of characters in _string regardless of char byte length
-        uint256 charByteCount = 0; // Number of bytes in char (a = 1, € = 3)
+        uint256 charByteCount; // Number of bytes in char (a = 1, € = 3)
         uint256 byteLength = bytes(_string).length; // Total length of string in raw bytes
 
         // Determine how many bytes each character in string has
-        for (charCount = 0; charByteCount < byteLength; charCount++) {
+        for (charCount; charByteCount < byteLength;) {
             bytes1 b = bytes(_string)[charByteCount]; // if tree uses first byte to determine length
-            if (b < 0x80) {
-                charByteCount += 1;
-            } else if (b < 0xE0) {
-                charByteCount += 2;
-            } else if (b < 0xF0) {
-                charByteCount += 3;
-            } else if (b < 0xF8) {
-                charByteCount += 4;
-            } else if (b < 0xFC) {
-                charByteCount += 5;
-            } else {
-                charByteCount += 6;
+
+            // Character counter shouldnt overflow
+            unchecked {
+                if (b < 0x80) {
+                    charByteCount += 1;
+                } else if (b < 0xE0) {
+                    charByteCount += 2;
+                } else if (b < 0xF0) {
+                    charByteCount += 3;
+                } else if (b < 0xF8) {
+                    charByteCount += 4;
+                } else if (b < 0xFC) {
+                    charByteCount += 5;
+                } else {
+                    charByteCount += 6;
+                }
             }
+            
+            // Characters wont overflow, so increment can be unchecked
+            ++charCount;
         }
         return charCount;
     }
@@ -185,8 +192,11 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice Returns total number of names sold
     function totalNamesSold() public view returns (uint256) {
         uint256 total;
-        for (uint256 i = 1; i < 7; i++) {
+        for (uint256 i = 1; i < 7;) {
             total += tokenCounts[i].total;
+            
+            // Increment literally cant overflow
+            unchecked { ++i; }
         }
         return total;
     }
@@ -231,7 +241,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @dev vrgdaInit can only be called after vrgdaBatch
     function vrgdaBatch() public onlyOwner {
         // Iteratively check all batch parameters for completeness
-        for (uint256 i = 1; i < 6; i++) {
+        for (uint256 i = 1; i < 6;) {
             if (initData[i].targetPrice == 0) {
                 revert MissingBatchData(i, true, false, false);
             }
@@ -241,6 +251,9 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
             if (initData[i].perTimeUnit == 0) {
                 revert MissingBatchData(i, false, false, true);
             }
+
+            // Increment literally cant overflow
+            unchecked { ++i; }
         }
         _batchInitialize();
     }
@@ -248,10 +261,13 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     // ************** THIS FUNCTION IS FOR TESTING PURPOSES ONLY AND SHOULD BE REMOVED BEFORE PRODUCTION ***************
     // Cheat batch init for testing purposes
     function vrgdaTest() public {
-        for (uint256 i = 1; i < 6; i++) {
+        for (uint256 i = 1; i < 6;) {
             initData[i].targetPrice = 1e18;
             initData[i].priceDecayPercent = 0.2e18;
             initData[i].perTimeUnit = 1e18;
+
+            // Increment literally cant overflow
+            unchecked { ++i; }
         }
         vrgdaBatch();
     }
@@ -570,7 +586,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
 
     /// @notice return the primary name of a given address
     /// @param _target return the primary name of this address
-    function getPrimary(address _target) public view returns (string memory) {
+    function getPrimary(address _target) external view returns (string memory) {
         uint256 tokenId = primaryName[_target];
         return nameRegistry[tokenId].name;
     }
@@ -680,8 +696,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
 
         // Calculate expiry timestamp
-        uint40 newDelegationExpiry =
-            uint40(block.timestamp) + (nameRegistry[_tokenId].delegationExpiry - uint40(block.timestamp)) + (_term * 365 days);
+        uint40 newDelegationExpiry = nameRegistry[_tokenId].delegationExpiry + (_term * 365 days);
 
         _extend(_tokenId, newDelegationExpiry);
     }
