@@ -265,7 +265,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @param _name name to reserve
     function adminReservation(address _reserver, string memory _name) public onlyOwner {
         uint256 tokenId = nameToID(_name);
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 reservationExpiry = block.timestamp + 365 days;
         allowlist.administrativeReservation(_reserver, tokenId, reservationExpiry);
     }
@@ -401,7 +400,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
@@ -437,7 +435,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         uint256 length = stringLength(_name);
         // Calculate price based off name length
         uint256 price = priceName(length);
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 expiry = block.timestamp + (_term * 365 days);
 
         // Require valid name
@@ -626,7 +623,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::delegateName::NOT_APPROVED");
 
         // Calculate expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 delegationExpiry = block.timestamp + (_term * 365 days);
 
         _delegate(_tokenId, delegate_, delegationExpiry);
@@ -684,7 +680,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
 
         // Calculate expiry timestamp
-        // ********************** FIX THIS TO SUPPORT LEAP YEARS **************************
         uint256 newDelegationExpiry =
             block.timestamp + (nameRegistry[_tokenId].delegationExpiry - block.timestamp) + (_term * 365 days);
 
