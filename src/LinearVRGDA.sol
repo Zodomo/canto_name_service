@@ -29,7 +29,7 @@ contract LinearVRGDA {
 
     // All values in VRGDA represent 18 decimal fixed point number
     struct VRGDA {
-        // Target price for a tokenamen, to be scaled according to sales pace.
+        // Target price for a name, to be scaled according to sales pace.
         int256 targetPrice;
         // Percentage price decays per unit of time with no sales, scaled by 1e18.
         int256 priceDecayPercent;
@@ -50,11 +50,11 @@ contract LinearVRGDA {
         int256 perTimeUnit;
     }
     // Mapping allows for dynamic access of all batch data for batch initialization
-    mapping(uint256 => batchData) internal initData;
+    mapping(uint256 => batchData) internal _initData;
 
     // Tracks whether batch initialization has happened
     // Prevents resetting everything accidentally by only allowing batch initialization once
-    bool internal batchInitialized;
+    bool internal _batchInitialized;
 
     // Stores token sold counts for VRGDA math
     struct counts {
@@ -65,7 +65,16 @@ contract LinearVRGDA {
     mapping(uint256 => counts) public tokenCounts;
 
     /*//////////////////////////////////////////////////////////////
-                          VRGDA MANAGEMENT
+                MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier validVRGDA(uint256 _VRGDA) {
+        require(_VRGDA > 0 && _VRGDA < 6, "LinearVRGDA::validVRGDA::INVALID_VRGDA_LENGTH");
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                VRGDA MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Constructor nuked in favor of initialize() function, will be called in CantoNameService constructor
@@ -80,60 +89,56 @@ contract LinearVRGDA {
         int256 _targetPrice,
         int256 _priceDecayPercent,
         int256 _perTimeUnit
-    ) internal {
-        if (_VRGDA > 0 && _VRGDA < 6) {
-            vrgdaData[_VRGDA].targetPrice = _targetPrice;
-            vrgdaData[_VRGDA].priceDecayPercent = _priceDecayPercent;
-            vrgdaData[_VRGDA].decayConstant = wadLn(1e18 - _priceDecayPercent);
-            vrgdaData[_VRGDA].perTimeUnit = _perTimeUnit;
-            vrgdaData[_VRGDA].startTime = int256(block.timestamp);
-            tokenCounts[_VRGDA].current = 0;
-            
-            emit Initialized(_VRGDA, block.timestamp);
-        } else {
-            revert("LinearVRGDA::_initialize::INVALID_VRGDA");
-        }
+    ) internal validVRGDA(_VRGDA) {
+        vrgdaData[_VRGDA].targetPrice = _targetPrice;
+        vrgdaData[_VRGDA].priceDecayPercent = _priceDecayPercent;
+        vrgdaData[_VRGDA].decayConstant = wadLn(1e18 - _priceDecayPercent);
+        vrgdaData[_VRGDA].perTimeUnit = _perTimeUnit;
+        vrgdaData[_VRGDA].startTime = int256(block.timestamp);
+        tokenCounts[_VRGDA].current = 0;
+        
+        emit Initialized(_VRGDA, block.timestamp);
     }
 
     // Initializes all of the VRGDAs at once
     function _batchInitialize() internal {
         // Require batch initialization hasn't happened
-        require(batchInitialized != true, "LinearVRGDA::_batchInitialize::BATCH_INITIALIZED");
+        require(_batchInitialized != true, "LinearVRGDA::_batchInitialize::BATCH_INITIALIZED");
 
         // Initialize all five VRGDAs
-        for (uint i = 1; i < 6; i++) {
+        for (uint i = 1; i < 6;) {
             _initialize(i,
-                initData[i].targetPrice,
-                initData[i].priceDecayPercent,
-                initData[i].perTimeUnit);
+                _initData[i].targetPrice,
+                _initData[i].priceDecayPercent,
+                _initData[i].perTimeUnit);
+            
+            // For loop increment cant overflow
+            unchecked { ++i; }
         }
 
-        // Set batchInitialized to prevent further calls
-        batchInitialized = true;
+        // Set _batchInitialized to prevent further calls
+        _batchInitialized = true;
     }
 
     /*//////////////////////////////////////////////////////////////
-                            PRICING LOGIC
+                PRICING LOGIC
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Calculate the price of a token according to the VRGDA formula.
     /// @param _sold The total number of tokens that have been sold so far.
     /// @return The price of a token according to VRGDA, scaled by 1e18.
-    function _getVRGDAPrice(uint256 _vrgda, uint256 _sold) internal view returns (uint256) {
+    function _getVRGDAPrice(uint256 _vrgda, uint256 _sold) internal view validVRGDA(_vrgda) returns (uint256) {
         // Temporary VRGDA Data storage for specific name length
         int256 targetPrice;
         int256 decayConstant;
         int256 timeSinceStart;
         int256 perTimeUnit;
 
-        if (_vrgda > 0 && _vrgda < 6) {
-            targetPrice = vrgdaData[_vrgda].targetPrice;
-            decayConstant = vrgdaData[_vrgda].decayConstant;
-            timeSinceStart = int256(block.timestamp) - vrgdaData[_vrgda].startTime;
-            perTimeUnit = vrgdaData[_vrgda].perTimeUnit;
-        } else {
-            revert("LinearVRGDA::_getVRGDAPrice::INVALID_VRGDA");
-        }
+        targetPrice = vrgdaData[_vrgda].targetPrice;
+        decayConstant = vrgdaData[_vrgda].decayConstant;
+        timeSinceStart = int256(block.timestamp) - vrgdaData[_vrgda].startTime;
+        perTimeUnit = vrgdaData[_vrgda].perTimeUnit;
+
         unchecked {
             return uint256(
                 wadMul(

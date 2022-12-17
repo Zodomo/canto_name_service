@@ -342,7 +342,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFrom(address(this), to, "test");
+        cns.safeTransferFromByName(address(this), to, "test");
     }
 
     function testFailSafeTransferFromToNonERC721RecipientWithData() public {
@@ -350,7 +350,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFromWithData(address(this), to, "test", "testing 123");
+        cns.safeTransferFromByNameWithData(address(this), to, "test", "testing 123");
     }
 
     function testFailSafeTransferFromToRevertingERC721Recipient() public {
@@ -358,7 +358,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFrom(address(this), to, "test");
+        cns.safeTransferFromByName(address(this), to, "test");
     }
 
     function testFailSafeTransferFromToRevertingERC721RecipientWithData() public {
@@ -366,7 +366,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFromWithData(address(this), to, "test", "testing 123");
+        cns.safeTransferFromByNameWithData(address(this), to, "test", "testing 123");
     }
 
     function testFailSafeTransferFromToERC721RecipientWithWrongReturnData() public {
@@ -374,7 +374,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFrom(address(this), to, "test");
+        cns.safeTransferFromByName(address(this), to, "test");
     }
 
     function testFailSafeTransferFromToERC721RecipientWithWrongReturnDataWithData() public {
@@ -382,7 +382,7 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.safeTransferFromWithData(address(this), to, "test", "testing 123");
+        cns.safeTransferFromByNameWithData(address(this), to, "test", "testing 123");
     }
 
     function testFailSafeRegisterToNonERC721Recipient() public {
@@ -599,7 +599,7 @@ contract CNSTest is DSTestPlus {
         hevm.prank(from);
         cns.setApprovalForAll(address(this), true);
 
-        cns.safeTransferFrom(from, _to, _name);
+        cns.safeTransferFromByName(from, _to, _name);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), _to);
@@ -621,7 +621,7 @@ contract CNSTest is DSTestPlus {
         hevm.prank(from);
         cns.setApprovalForAll(address(this), true);
 
-        cns.safeTransferFrom(from, address(recipient), _name);
+        cns.safeTransferFromByName(from, address(recipient), _name);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), address(recipient));
@@ -648,7 +648,7 @@ contract CNSTest is DSTestPlus {
         hevm.prank(from);
         cns.setApprovalForAll(address(this), true);
 
-        cns.safeTransferFromWithData(from, address(recipient), _name, _data);
+        cns.safeTransferFromByNameWithData(from, address(recipient), _name, _data);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), address(recipient));

@@ -4,10 +4,9 @@ pragma solidity ^0.8.17;
 import "./LinearVRGDA.sol";
 import "./Allowlist.sol";
 import "openzeppelin-contracts/access/Ownable2Step.sol";
-import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 import "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step, ReentrancyGuard {
+contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -62,26 +61,6 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     Allowlist allowlist;
 
-    /*//////////////////////////////////////////////////////////////
-                CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor(address _allowlist) ERC721("Canto Name Service", "CNS") {
-        transferOwnership(msg.sender);
-        setAllowlist(_allowlist);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                MANAGEMENT FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    // Set Allowlist contract address
-    // Can only be called if VRGDA batch initialization has not occurred
-    function setAllowlist(address _allowlist) public onlyOwner {
-        require(batchInitialized != true, "CantoNameService::_setAllowlist::BATCH_INITIALIZED");
-        allowlist = Allowlist(_allowlist);
-    }
-
     string baseURI;
 
     // Name data / URI(?) struct
@@ -99,9 +78,28 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     // Inverse name lookup tokenId to address
     mapping(uint256 => address) public currentPrimary;
 
+    /*//////////////////////////////////////////////////////////////
+                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    constructor(address _allowlist) ERC721("Canto Name Service", "CNS") {
+        setAllowlist(_allowlist);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    // Set Allowlist contract address
+    // Can only be called if VRGDA batch initialization has not occurred
+    function setAllowlist(address _allowlist) public onlyOwner {
+        require(_batchInitialized != true, "CantoNameService::_setAllowlist::BATCH_INITIALIZED");
+        allowlist = Allowlist(_allowlist);
+    }
+
     /// @notice sets base URI for token metadata
     /// @param _newBaseURI new base URI
-    function setBaseURI(string memory _newBaseURI) public onlyOwner {
+    function setBaseURI(string calldata _newBaseURI) public onlyOwner {
         baseURI = _newBaseURI;
     }
 
@@ -111,13 +109,13 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     /// @notice Converts string name to uint256 tokenId
     /// @param _name Name to convert
-    function nameToID(string memory _name) public pure returns (uint256) {
+    function nameToID(string calldata _name) public pure returns (uint256) {
         return (uint256(keccak256(abi.encodePacked(_name))));
     }
 
     /// @notice Return name owner addressa
     /// @param _name Name to check
-    function getNameOwner(string memory _name) public view returns (address) {
+    function getNameOwner(string calldata _name) public view returns (address) {
         uint256 tokenId = nameToID(_name);
         return ownerOf(tokenId);
     }
@@ -180,12 +178,12 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @notice Increments the proper counters based on string length (accurate counts through 5)
     function _incrementCounts(uint256 _length) internal {
         if (_length > 0 && _length < 6) {
-            tokenCounts[_length].current++;
-            tokenCounts[_length].total++;
+            ++tokenCounts[_length].current;
+            ++tokenCounts[_length].total;
         } else {
             // 6 set as upper limit currently to make totalNamesSold logic easy
-            tokenCounts[6].current++;
-            tokenCounts[6].total++;
+            ++tokenCounts[6].current;
+            ++tokenCounts[6].total;
         }
     }
 
@@ -215,7 +213,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
         public
         onlyOwner
     {
-        require(batchInitialized == true, "CantoNameService::vrgdaInit::INITIALIZE_BATCH");
+        require(_batchInitialized == true, "CantoNameService::vrgdaInit::INITIALIZE_BATCH");
         _initialize(_VRGDA, _targetPrice, _priceDecayPercent, _perTimeUnit);
     }
 
@@ -226,13 +224,36 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
         public
         onlyOwner
     {
-        require(batchInitialized == false, "CantoNameService::vrgdaPrep::BATCH_INITIALIZED");
+        require(_batchInitialized == false, "CantoNameService::vrgdaPrep::BATCH_INITIALIZED");
         if (_VRGDA > 0 && _VRGDA < 6) {
-            initData[_VRGDA].targetPrice = _targetPrice;
-            initData[_VRGDA].priceDecayPercent = _priceDecayPercent;
-            initData[_VRGDA].perTimeUnit = _perTimeUnit;
+            _initData[_VRGDA].targetPrice = _targetPrice;
+            _initData[_VRGDA].priceDecayPercent = _priceDecayPercent;
+            _initData[_VRGDA].perTimeUnit = _perTimeUnit;
         } else {
             revert("CantoNameService::vrgdaPrep::INVALID_VRGDA");
+        }
+    }
+
+    /// @notice prepares VRGDA for calculations in a batched, gas-efficient fashion
+    /// @param _VRGDA VRGDA ID - corresponds to string length
+    /// @dev Can only be called before batch initialization
+    function vrgdaPrepBatch(uint256[] memory _VRGDA, int256[] memory _targetPrice, int256[] memory _priceDecayPercent, int256[] memory _perTimeUnit) 
+        public
+        onlyOwner
+    {
+        // Require all array parameters be equal length
+        require(_VRGDA.length == _targetPrice.length &&
+            _VRGDA.length == _priceDecayPercent.length &&
+            _VRGDA.length == _perTimeUnit.length
+        );
+
+        // Loop through arrays calling vrgdaPrep() for each index
+        for (uint8 i; i < _VRGDA.length;) {
+            // Call vrgdaPrep() logic on batch index
+            vrgdaPrep(_VRGDA[i], _targetPrice[i], _priceDecayPercent[i], _perTimeUnit[i]);
+
+            // For loop cannot overflow
+            unchecked { ++i; }
         }
     }
 
@@ -242,13 +263,13 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     function vrgdaBatch() public onlyOwner {
         // Iteratively check all batch parameters for completeness
         for (uint256 i = 1; i < 6;) {
-            if (initData[i].targetPrice == 0) {
+            if (_initData[i].targetPrice == 0) {
                 revert MissingBatchData(i, true, false, false);
             }
-            if (initData[i].priceDecayPercent == 0) {
+            if (_initData[i].priceDecayPercent == 0) {
                 revert MissingBatchData(i, false, true, false);
             }
-            if (initData[i].perTimeUnit == 0) {
+            if (_initData[i].perTimeUnit == 0) {
                 revert MissingBatchData(i, false, false, true);
             }
 
@@ -262,9 +283,9 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     // Cheat batch init for testing purposes
     function vrgdaTest() public {
         for (uint256 i = 1; i < 6;) {
-            initData[i].targetPrice = 1e18;
-            initData[i].priceDecayPercent = 0.2e18;
-            initData[i].perTimeUnit = 1e18;
+            _initData[i].targetPrice = 1e18;
+            _initData[i].priceDecayPercent = 0.2e18;
+            _initData[i].perTimeUnit = 1e18;
 
             // Increment literally cant overflow
             unchecked { ++i; }
@@ -279,7 +300,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @notice admin function to reserve names
     /// @param _reserver address of the reserver
     /// @param _name name to reserve
-    function adminReservation(address _reserver, string memory _name) public onlyOwner {
+    function adminReservation(address _reserver, string calldata _name) public onlyOwner {
         uint256 tokenId = nameToID(_name);
         uint256 reservationExpiry = block.timestamp + 365 days;
         allowlist.administrativeReservation(_reserver, tokenId, reservationExpiry);
@@ -287,36 +308,34 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     // Check to see if name is reserved
     function isReserved(uint256 _tokenId) public view returns (bool) {
-        return allowlist.getReserver(_tokenId) != address(0x0);
+        return allowlist.nameReserver(_tokenId) != address(0x0);
     }
 
     /// @notice checks if reservation is valid
     /// @param _tokenId tokenId to check
     function _validateReservation(uint256 _tokenId) internal view {
         require(
-            allowlist.getReserver(_tokenId) == msg.sender,
+            allowlist.nameReserver(_tokenId) == msg.sender,
             "CantoNameService::_validateReservation::NOT_RESERVER"
         );
         require(
-            allowlist.getReservation(msg.sender) == _tokenId,
+            allowlist.nameReservation(msg.sender) == _tokenId,
             "CantoNameService::_validateReservation::INVALID_RESERVATION"
         );
         require(
-            allowlist.getReservationExpiry(msg.sender) >= block.timestamp,
+            allowlist.reservationExpiry(msg.sender) > block.timestamp,
             "CantoNameService::_validateReservation::RESERVATION_EXPIRED"
         );
     }
 
     /// @notice burns a reservation
     /// @param _name name to burn reservation for
-    function burnReservation(string memory _name) public {
+    function burnReservation(string calldata _name) public {
         burnReservationById(nameToID(_name));
     }
 
-    // TODO: Add testing, I'm 60% sure this won't work since allowlist.deleteReservation(_tokenId) checks require(nameReserver[_tokenId] == msg.sender, "Allowlist::deleteReservation::NOT_RESERVER");
-    // and msg.sender is this contract address, not the owner of the name.
-    // FIX: Use tx.origin or call the deleteReservation function directly from the allowlist contract
-    // Burn reservation, releasing it for others
+    /// @notice burns reservation by ID
+    /// @param _tokenId tokenId of name to burn
     function burnReservationById(uint256 _tokenId) public {
         // Check to make sure reservation is valid
         _validateReservation(_tokenId);
@@ -343,48 +362,56 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     /// @notice allows for checks after token transfer
     /// @dev requires the unused params to be named to override correctly
-    function _afterTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
-        internal
-        override (ERC721)
+    function _afterTokenTransfer(uint256 tokenId) internal
     {
         nameRegistry[tokenId].delegate = address(0x0); // Clear delegate address
         nameRegistry[tokenId].delegationExpiry = 0; // Clear delegation expiry
-        primaryName[currentPrimary[tokenId]] = 0; // Wipe primary address' primary name
-        currentPrimary[tokenId] = address(0x0); // Reset inverse lookup
+        delete primaryName[currentPrimary[tokenId]]; // Wipe primary address' primary name
+        delete currentPrimary[tokenId]; // Reset inverse lookup
     }
 
-    function ownerOfByName(string memory _name) public view returns (address) {
+    function ownerOfByName(string calldata _name) public view returns (address) {
         uint256 tokenId = nameToID(_name);
         return ownerOf(tokenId);
     }
 
-    function approveByName(address _to, string memory _name) public {
+    function approveByName(address _to, string calldata _name) public {
         uint256 tokenId = nameToID(_name);
         approve(_to, tokenId);
     }
 
-    function getApprovedByName(string memory _name) public view returns (address) {
+    function getApprovedByName(string calldata _name) public view returns (address) {
         uint256 tokenId = nameToID(_name);
         return getApproved(tokenId);
     }
 
-    function transferFromByName(address _from, address _to, string memory _name) public {
+    function transferFromByName(address _from, address _to, string calldata _name) public {
         uint256 tokenId = nameToID(_name);
         transferFrom(_from, _to, tokenId);
     }
 
     function transferFrom(address _from, address _to, uint256 tokenId) public virtual override (ERC721, IERC721) {
-        _afterTokenTransfer(_from, _to, tokenId, 1);
+        _afterTokenTransfer(tokenId);
         transferFrom(_from, _to, tokenId);
     }
 
-    function safeTransferFrom(address _from, address _to, string memory _name) public {
-        safeTransferFromWithData(_from, _to, _name, "");
+    function safeTransferFromByName(address _from, address _to, string calldata _name) public {
+        uint256 tokenId = nameToID(_name);
+        safeTransferFrom(_from, _to, tokenId, "");
     }
 
-    function safeTransferFromWithData(address _from, address _to, string memory _name, bytes memory _data) public {
+    function safeTransferFromByNameWithData(address _from, address _to, string calldata _name, bytes memory _data) public {
         uint256 tokenId = nameToID(_name);
-        safeTransferFrom(_from, _to, tokenId, _data);
+        safeTransferFromWithData(_from, _to, tokenId, _data);
+    }
+
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) public virtual override (ERC721, IERC721) {
+        _afterTokenTransfer(_tokenId);
+        safeTransferFromWithData(_from, _to, _tokenId, "");
+    }
+
+    function safeTransferFromWithData(address _from, address _to, uint256 _tokenId, bytes memory _data) public {
+        safeTransferFrom(_from, _to, _tokenId, _data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -395,7 +422,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _name name to register
     /// @param _tokenId tokenId to register name to
     /// @param _expiry expiry of name registration
-    function _register(string memory _name, uint256 _tokenId, uint40 _expiry) internal {
+    function _register(string calldata _name, uint256 _tokenId, uint40 _expiry) internal {
         if (isReserved(_tokenId)) {
             // Consume reservation, validity will be checked during burn
             burnReservationById(_tokenId);
@@ -412,7 +439,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _to address to register name to
     /// @param _name name to register
     /// @param _term count of years to register _name for
-    function safeRegister(address _to, string memory _name, uint40 _term) external payable {
+    function safeRegister(address _to, string calldata _name, uint40 _term) external payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
@@ -447,7 +474,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _to address to register name to
     /// @param _name name to register
     /// @param _term count of years to register _name for
-    function unsafeRegister(address _to, string memory _name, uint40 _term) external payable {
+    function unsafeRegister(address _to, string calldata _name, uint40 _term) external payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
@@ -482,7 +509,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     /// @notice burns NFT
     /// @param _name burn this name's registration
-    function burnName(string memory _name) external {
+    function burnName(string calldata _name) external {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         burnNameById(tokenId);
@@ -499,7 +526,12 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     function burnNameById(uint256 _tokenId) public {
         // Require owner/approved/operator
         require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::burnName::NOT_APPROVED");
+
+        // Burn ERC721 token
         _burn(_tokenId);
+
+        // Burn CantoNameService data
+        delete nameRegistry[_tokenId];
 
         emit Burn(msg.sender, _tokenId);
     }
@@ -525,7 +557,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @notice renews name registration for a given term
     /// @param _name renew registration for this tokenId
     /// @param _term count of years to extend the delegation
-    function renewName(string memory _name, uint40 _term) external payable {
+    function renewName(string calldata _name, uint40 _term) external payable {
         renewNameById(nameToID(_name), _term);
     }
 
@@ -535,9 +567,9 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @dev Anyone can renew for anyone else
     function renewNameById(uint256 _tokenId, uint40 _term) public payable {
         // Retrieve name string
-        string memory name = nameRegistry[_tokenId].name;
+        string memory targetName = nameRegistry[_tokenId].name;
         // Calculate name string character length
-        uint256 length = stringLength(name);
+        uint256 length = stringLength(targetName);
         // Use name character length to calculate current price
         uint256 price = priceName(length);
         // Calculate new expiry timestamp
@@ -563,7 +595,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
     /// @notice sets the primary name of a given name to the msg.sender
     /// @param _name name to set the primary address
-    function setPrimary(string memory _name) public {
+    function setPrimary(string calldata _name) public {
         setPrimaryById(nameToID(_name));
     }
 
@@ -618,7 +650,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
 
         // If used as primary by owner, clear
         if (primaryName[ownerOf(_tokenId)] == _tokenId) {
-            primaryName[currentPrimary[_tokenId]] = 0; // Wipe primary address' primary name
+            delete primaryName[currentPrimary[_tokenId]]; // Wipe primary address' primary name
             currentPrimary[_tokenId] = address(0x0); // Reset inverse lookup
         }
 
@@ -629,7 +661,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _name name to delegate to another address
     /// @param delegate_ address to delegate the registered name to
     /// @param _term count of years to extend the delegation
-    function delegateName(string memory _name, address delegate_, uint40 _term) public {
+    function delegateName(string calldata _name, address delegate_, uint40 _term) public {
         delegateNameById(nameToID(_name), delegate_, _term);
     }
 
@@ -651,7 +683,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _name name to delegate to another address
     /// @param delegate_ address to delegate the registered name to
     /// @param _expiry expiration timestamp
-    function delegateNameWithPrecision(string memory _name, address delegate_, uint40 _expiry) public {
+    function delegateNameWithPrecision(string calldata _name, address delegate_, uint40 _expiry) public {
         delegateNameWithPrecisionById(nameToID(_name), delegate_, _expiry);
     }
 
@@ -687,19 +719,25 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @notice allow token holder to extend delegation to other address
     /// @param _name name to extend the delegation for
     /// @param _term count of years to extend the delegation
-    function extendDelegation(string memory _name, uint40 _term) public {
+    function extendDelegation(string calldata _name, uint40 _term) public {
         extendDelegationById(nameToID(_name), _term);
     }
 
     /// @notice allow token holder to extend delegation to other address
     /// @param _tokenId tokenId to extend the delegation
-    /// @param _term count of years to extend the delegation
+    /// @param _term count of years to extend the delegation (max: 1000)
     function extendDelegationById(uint256 _tokenId, uint40 _term) public {
-        // Require owner/approved/operator
-        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegation::NOT_APPROVED");
+        // Require _term isnt longer than 1000 years
+        require(_term <= 1000, "CantoNameService::extendDelegationById::TERM_TOO_LONG");
 
-        // Calculate expiry timestamp
-        uint40 newDelegationExpiry = nameRegistry[_tokenId].delegationExpiry + (_term * 365 days);
+        // Require owner/approved/operator
+        require(_isApprovedOrOwner(msg.sender, _tokenId), "CantoNameService::extendDelegationById::NOT_APPROVED");
+
+        // Calculate expiry timestamp, cannot overflow so unchecked is safe
+        uint40 newDelegationExpiry;
+        unchecked {
+            newDelegationExpiry = nameRegistry[_tokenId].delegationExpiry + (_term * 365 days);
+        }
 
         _extend(_tokenId, newDelegationExpiry);
     }
@@ -707,7 +745,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @notice allow token holder to extend delegation expiry with timestamp precision
     /// @param _name name to extend the delegation for
     /// @param _newExpiry new expiration timestamp
-    function extendDelegationWithPrecision(string memory _name, uint40 _newExpiry) external {
+    function extendDelegationWithPrecision(string calldata _name, uint40 _newExpiry) external {
         extendDelegationWithPrecisionById(nameToID(_name), _newExpiry);
     }
 
