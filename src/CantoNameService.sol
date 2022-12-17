@@ -439,7 +439,16 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
     /// @param _to address to register name to
     /// @param _name name to register
     /// @param _term count of years to register _name for
-    function safeRegister(address _to, string calldata _name, uint40 _term) external payable {
+    function safeRegister(address _to, string calldata _name, uint40 _term) public payable {
+        safeRegister(_to, _name, _term, "");
+    }
+
+    /// @notice registers name
+    /// @param _to address to register name to
+    /// @param _name name to register
+    /// @param _term count of years to register _name for
+    /// @param _data is ERC721 data parameter
+    function safeRegister(address _to, string calldata _name, uint40 _term, bytes memory _data) public payable {
         // Generate tokenId from name string
         uint256 tokenId = nameToID(_name);
         // Calculate name character length
@@ -456,7 +465,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step
         require(msg.value >= price * _term, "CantoNameService::safeRegister::INSUFFICIENT_PAYMENT");
 
         // Call internal safe mint logic
-        _safeMint(_to, tokenId, "");
+        _safeMint(_to, tokenId, _data);
 
         // Call internal register logic
         _register(_name, tokenId, expiry);

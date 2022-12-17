@@ -92,7 +92,7 @@ contract CNSTest is DSTestPlus {
 
         assertEq(cns.balanceOf(address(this)), 0);
 
-        hevm.expectRevert("ERC721::_requireMinted::NOT_MINTED");
+        hevm.expectRevert("ERC721: invalid token ID");
         assertEq(cns.ownerOf(tokenId), address(0));
     }
 
@@ -103,7 +103,7 @@ contract CNSTest is DSTestPlus {
 
         cns.approveByName(target, "test");
 
-        assertEq(cns.getApproved(tokenId), target);
+        assertEq(cns.getApprovedByName("test"), target);
     }
 
     function testApproveAll() public {
@@ -119,16 +119,16 @@ contract CNSTest is DSTestPlus {
         cns.unsafeRegister{value: price * 1 wei}(target, "test", 1);
 
         hevm.prank(target);
-        cns.approve(address(this), tokenId);
+        cns.approveByName(address(this), "test");
 
         cns.burnName("test");
 
         assertEq(cns.balanceOf(target), 0);
 
-        hevm.expectRevert("ERC721::_requireMinted::NOT_MINTED");
+        hevm.expectRevert("ERC721: invalid token ID");
         assertEq(cns.ownerOf(tokenId), address(0));
 
-        hevm.expectRevert("ERC721::_requireMinted::NOT_MINTED");
+        hevm.expectRevert("ERC721: invalid token ID");
         assertEq(cns.getApproved(tokenId), address(0));
     }
 
@@ -138,12 +138,12 @@ contract CNSTest is DSTestPlus {
         cns.unsafeRegister{value: price * 1 wei}(from, "test", 1);
 
         hevm.prank(from);
-        cns.approve(address(this), tokenId);
+        cns.approveByName(address(this), "test");
 
-        cns.transferFrom(from, address(this), tokenId);
+        cns.transferFromByName(from, address(this), "test");
 
-        assertEq(cns.getApproved(tokenId), address(0));
-        assertEq(cns.ownerOf(tokenId), address(this));
+        assertEq(cns.getApprovedByName("test"), address(0));
+        assertEq(cns.ownerOfByName("test"), address(this));
         assertEq(cns.balanceOf(address(this)), 1);
         assertEq(cns.balanceOf(from), 0);
     }
@@ -153,10 +153,10 @@ contract CNSTest is DSTestPlus {
 
         cns.unsafeRegister{value: price * 1 wei}(address(this), "test", 1);
 
-        cns.transferFrom(address(this), to, tokenId);
+        cns.transferFromByName(address(this), to, "test");
 
-        assertEq(cns.getApproved(tokenId), address(0));
-        assertEq(cns.ownerOf(tokenId), to);
+        assertEq(cns.getApprovedByName("test"), address(0));
+        assertEq(cns.ownerOfByName("test"), to);
         assertEq(cns.balanceOf(to), 1);
         assertEq(cns.balanceOf(address(this)), 0);
     }
@@ -170,10 +170,10 @@ contract CNSTest is DSTestPlus {
         hevm.prank(from);
         cns.setApprovalForAll(address(this), true);
 
-        cns.transferFrom(from, to, tokenId);
+        cns.transferFromByName(from, to, "test");
 
-        assertEq(cns.getApproved(tokenId), address(0));
-        assertEq(cns.ownerOf(tokenId), to);
+        assertEq(cns.getApprovedByName("test"), address(0));
+        assertEq(cns.ownerOfByName("test"), to);
         assertEq(cns.balanceOf(to), 1);
         assertEq(cns.balanceOf(from), 0);
     }
@@ -265,7 +265,7 @@ contract CNSTest is DSTestPlus {
     function testSafeRegisterToERC721RecipientWithData() public {
         ERC721Recipient to = new ERC721Recipient();
 
-        cns.safeRegister{value: price * 1 wei}(address(to), "test", 1);
+        cns.safeRegister{value: price * 1 wei}(address(to), "test", 1, "testing 123");
 
         assertEq(cns.ownerOf(tokenId), address(to));
         assertEq(cns.balanceOf(address(to)), 1);
@@ -473,7 +473,7 @@ contract CNSTest is DSTestPlus {
 
         assertEq(cns.balanceOf(_to), 0);
 
-        hevm.expectRevert("ERC721::_requireMinted::NOT_MINTED");
+        hevm.expectRevert("ERC721: invalid token ID");
         cns.ownerOfByName(_name);
     }
 
@@ -481,7 +481,7 @@ contract CNSTest is DSTestPlus {
         if (_to == address(0) || _to == address(0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84)) {
             _to = address(0xBEEF);
         }
-        if (cns.stringLength(_name) == 0) _name = name;
+        if (cns.stringLength(_name) == 0) { _name = name; }
 
         uint256 _length = cns.stringLength(_name);
         uint256 _price = cns.priceName(_length);
@@ -489,7 +489,7 @@ contract CNSTest is DSTestPlus {
         cns.unsafeRegister{value: _price * 1 wei}(_to, _name, 1);
 
         hevm.prank(_to);
-        cns.approve(address(this), cns.nameToID(_name));
+        cns.approveByName(address(this), _name);
 
         assertEq(cns.getApprovedByName(_name), address(this));
     }
@@ -506,27 +506,27 @@ contract CNSTest is DSTestPlus {
         cns.unsafeRegister{value: _price * 1 wei}(_to, _name, 1);
 
         hevm.prank(_to);
-        cns.approve(address(this), cns.nameToID(_name));
+        cns.approveByName(address(this), _name);
 
         cns.burnName(_name);
 
         assertEq(cns.balanceOf(_to), 0);
 
-        hevm.expectRevert("ERC721::_requireMinted::NOT_MINTED");
+        hevm.expectRevert("ERC721: invalid token ID");
         cns.ownerOfByName(_name);
     }
 
-    function testApproveAll(address _to, bool _approved) public {
-        cns.setApprovalForAll(_to, _approved);
+    function testApproveAll(address _to) public {
+        cns.setApprovalForAll(_to, true);
 
-        assertBoolEq(cns.isApprovedForAll(address(this), _to), _approved);
+        assertBoolEq(cns.isApprovedForAll(address(this), _to), true);
     }
 
     function testUnsafeTransferFrom(address _to, string memory _name) public {
         address from = address(0xABCD);
 
-        if (_to == address(0) || _to == from) _to = address(0xBEEF);
-        if (cns.stringLength(_name) == 0) _name = name;
+        if (_to == address(0) || _to == from) { _to = address(0xBEEF); }
+        if (cns.stringLength(_name) == 0) { _name = name; }
 
         uint256 _length = cns.stringLength(_name);
         uint256 _price = cns.priceName(_length);
@@ -534,9 +534,9 @@ contract CNSTest is DSTestPlus {
         cns.unsafeRegister{value: _price * 1 wei}(from, _name, 1);
 
         hevm.prank(from);
-        cns.approve(address(this), cns.nameToID(_name));
+        cns.approveByName(address(this), _name);
 
-        cns.transferFrom(from, _to, cns.nameToID(_name));
+        cns.transferFromByName(from, _to, _name);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), _to);
@@ -545,15 +545,15 @@ contract CNSTest is DSTestPlus {
     }
 
     function testTransferFromSelf(address _to, string memory _name) public {
-        if (_to == address(0) || _to == address(this)) _to = address(0xBEEF);
-        if (cns.stringLength(_name) == 0) _name = name;
+        if (_to == address(0) || _to == address(this)) { _to = address(0xBEEF); }
+        if (cns.stringLength(_name) == 0) { _name = name; }
 
         uint256 _length = cns.stringLength(_name);
         uint256 _price = cns.priceName(_length);
 
         cns.unsafeRegister{value: _price * 1 wei}(address(this), _name, 1);
 
-        cns.transferFrom(address(this), _to, cns.nameToID(_name));
+        cns.transferFromByName(address(this), _to, _name);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), _to);
@@ -564,8 +564,8 @@ contract CNSTest is DSTestPlus {
     function testTransferFromApproveAll(address _to, string memory _name) public {
         address from = address(0xABCD);
 
-        if (_to == address(0) || _to == from) _to = address(0xBEEF);
-        if (cns.stringLength(_name) == 0) _name = name;
+        if (_to == address(0) || _to == from) { _to = address(0xBEEF); }
+        if (cns.stringLength(_name) == 0) { _name = name; }
 
         uint256 _length = cns.stringLength(_name);
         uint256 _price = cns.priceName(_length);
@@ -575,7 +575,7 @@ contract CNSTest is DSTestPlus {
         hevm.prank(from);
         cns.setApprovalForAll(address(this), true);
 
-        cns.transferFrom(from, _to, cns.nameToID(_name));
+        cns.transferFromByName(from, _to, _name);
 
         assertEq(cns.getApprovedByName(_name), address(0));
         assertEq(cns.ownerOfByName(_name), _to);
@@ -701,12 +701,12 @@ contract CNSTest is DSTestPlus {
     function testSafeMintToERC721RecipientWithData(string memory _name, bytes calldata _data) public {
         ERC721Recipient to = new ERC721Recipient();
 
-        if (cns.stringLength(_name) == 0) _name = name;
+        if (cns.stringLength(_name) == 0) { _name = name; }
 
         uint256 _length = cns.stringLength(_name);
         uint256 _price = cns.priceName(_length);
 
-        cns.safeRegister{value: _price * 1 wei}(address(to), _name, 1);
+        cns.safeRegister{value: _price * 1 wei}(address(to), _name, 1, _data);
 
         assertEq(cns.ownerOfByName(_name), address(to));
         assertEq(cns.balanceOf(address(to)), 1);
