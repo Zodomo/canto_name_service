@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "openzeppelin-contracts/access/Ownable.sol";
+import "openzeppelin-contracts/access/Ownable2Step.sol";
 
 // Inspired by ERC721C by transmissions11 https://github.com/transmissions11/ERC721C
-contract Allowlist is Ownable {
+contract Allowlist is Ownable2Step {
 
     /*//////////////////////////////////////////////////////////////
                 MODIFIERS
@@ -28,6 +28,10 @@ contract Allowlist is Ownable {
 
     // Cutoff timestamp
     uint256 cutoff;
+    
+    // CantoNameService contract address
+    // Used for whitelisting deleteReservation() logic to prevent tx.phishing
+    address CNS;
 
     // User CAPTCHA verification
     mapping(address => bool) internal hasPassedCAPTCHA;
@@ -52,8 +56,13 @@ contract Allowlist is Ownable {
     event Release(address indexed reserver, uint256 indexed tokenId);
 
     /*//////////////////////////////////////////////////////////////
-                GENERAL FUNCTIONS
+                MANAGEMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    // Set the CNS contract address
+    function setCNSAddress(address _CNS) public onlyOwner {
+        CNS = _CNS;
+    }
 
     // Allow admin to manually set registrations
     function administrativeReservation(
@@ -65,6 +74,10 @@ contract Allowlist is Ownable {
         nameReservation[_reserver] = _tokenId;
         reservationExpiry[_reserver] = _expiry;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                GENERAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     // TODO: Why not change the nameReservation mapping to a public mapping and remove this function?
     // Return reserved ID
@@ -84,13 +97,24 @@ contract Allowlist is Ownable {
     }
 
     // Delete the above data
-    function deleteReservation(uint256 _tokenId) public {
-        require(nameReserver[_tokenId] == tx.origin, "Allowlist::deleteReservation::NOT_RESERVER");
+    function deleteReservation(address _reserver, uint256 _tokenId) public {
+        // Confirm _reserver is the _tokenId reserver
+        require(nameReserver[_tokenId] == _reserver, "Allowlist::deleteReservation::INCORRECT_RESERVER");
+        // If tx.origin isn't the reserver (contract wallets), only allow CantoNameService to call
+        if (nameReserver[_tokenId] != tx.origin) {
+            require(msg.sender == CNS, "Allowlist::deleteReservation::NOT_CANTONAMESERVICE");
+        }
+        // Otherwise, make sure msg.sender is the reserver
+        else if (nameReserver[_tokenId] != msg.sender) {
+            revert("Allowlist::deleteReservation::NOT_RESERVER");
+        }
+        
+        // Delete reservation data
         delete nameReserver[_tokenId];
-        delete nameReservation[tx.origin];
-        delete reservationExpiry[tx.origin];
+        delete nameReservation[_reserver];
+        delete reservationExpiry[_reserver];
 
-        emit Release(tx.origin, _tokenId);
+        emit Release(_reserver, _tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////

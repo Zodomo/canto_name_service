@@ -3,11 +3,11 @@ pragma solidity ^0.8.17;
 
 import "./LinearVRGDA.sol";
 import "./Allowlist.sol";
-import "openzeppelin-contracts/access/Ownable.sol";
+import "openzeppelin-contracts/access/Ownable2Step.sol";
 import "openzeppelin-contracts/security/ReentrancyGuard.sol";
 import "openzeppelin-contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, ReentrancyGuard {
+contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable2Step, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -293,7 +293,10 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
     /// @notice checks if reservation is valid
     /// @param _tokenId tokenId to check
     function _validateReservation(uint256 _tokenId) internal view {
-        require(allowlist.getReserver(_tokenId) == msg.sender, "CantoNameService::_validateReservation::NOT_RESERVER");
+        require(
+            allowlist.getReserver(_tokenId) == msg.sender,
+            "CantoNameService::_validateReservation::NOT_RESERVER"
+        );
         require(
             allowlist.getReservation(msg.sender) == _tokenId,
             "CantoNameService::_validateReservation::INVALID_RESERVATION"
@@ -319,7 +322,7 @@ contract CantoNameService is ERC721, ERC721Enumerable, LinearVRGDA, Ownable, Ree
         _validateReservation(_tokenId);
 
         // Wipe out all reservation information
-        allowlist.deleteReservation(_tokenId);
+        allowlist.deleteReservation(msg.sender, _tokenId);
     }
 
     /*//////////////////////////////////////////////////////////////
